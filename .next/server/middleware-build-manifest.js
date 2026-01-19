@@ -24,15 +24,10 @@ self.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/admin/countries": [
+    "/container-calculator": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/admin/countries.js"
-    ],
-    "/admin/locations": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/admin/locations.js"
+      "static/chunks/pages/container-calculator.js"
     ]
   },
   "ampFirstPages": []

@@ -57,6 +57,21 @@ export default function Home() {
     const [error, setError] = useState('');
     const [showCurrency, setShowCurrency] = useState('INR');
 
+    // Container Calculator Modal State
+    const [showCalcModal, setShowCalcModal] = useState(false);
+    const [boxLength, setBoxLength] = useState('');
+    const [boxWidth, setBoxWidth] = useState('');
+    const [boxHeight, setBoxHeight] = useState('');
+    const [boxWeight, setBoxWeight] = useState('');
+    const [calcResult, setCalcResult] = useState(null);
+    const [calcError, setCalcError] = useState('');
+
+    // Container specifications (internal dimensions in cm)
+    const CONTAINER_SPECS = {
+        '20FT': { lengthCm: 590, widthCm: 235, heightCm: 239, maxWeightKg: 28000 },
+        '40FT': { lengthCm: 1200, widthCm: 235, heightCm: 239, maxWeightKg: 28000 }
+    };
+
     // Load initial data
     useEffect(() => {
         async function loadData() {
@@ -282,6 +297,100 @@ export default function Home() {
         }
     };
 
+    // Container capacity calculation
+    const handleContainerCalc = () => {
+        setCalcError('');
+        setCalcResult(null);
+
+        const length = parseFloat(boxLength);
+        const width = parseFloat(boxWidth);
+        const height = parseFloat(boxHeight);
+        const weight = parseFloat(boxWeight);
+
+        if (!length || length <= 0) return setCalcError('Please enter valid box length');
+        if (!width || width <= 0) return setCalcError('Please enter valid box width');
+        if (!height || height <= 0) return setCalcError('Please enter valid box height');
+        if (!weight || weight <= 0) return setCalcError('Please enter valid box weight');
+
+        const containerCode = selectedContainerType?.code || '20FT';
+        const container = CONTAINER_SPECS[containerCode];
+
+        // Check if box fits
+        const dims = [length, width, height].sort((a, b) => b - a);
+        if (dims[0] > container.lengthCm || dims[1] > container.widthCm || dims[2] > container.heightCm) {
+            return setCalcError('Box is too large to fit in the container!');
+        }
+
+        // Calculate boxes by VOLUME (try all orientations)
+        const orientations = [
+            { l: length, w: width, h: height },
+            { l: length, w: height, h: width },
+            { l: width, w: length, h: height },
+            { l: width, w: height, h: length },
+            { l: height, w: length, h: width },
+            { l: height, w: width, h: length }
+        ];
+
+        let maxBoxesByVolume = 0;
+        let bestOrientation = orientations[0];
+
+        for (const o of orientations) {
+            if (o.l <= container.lengthCm && o.w <= container.widthCm && o.h <= container.heightCm) {
+                const alongLength = Math.floor(container.lengthCm / o.l);
+                const alongWidth = Math.floor(container.widthCm / o.w);
+                const alongHeight = Math.floor(container.heightCm / o.h);
+                const total = alongLength * alongWidth * alongHeight;
+                if (total > maxBoxesByVolume) {
+                    maxBoxesByVolume = total;
+                    bestOrientation = { ...o, alongLength, alongWidth, alongHeight };
+                }
+            }
+        }
+
+        // Calculate boxes by WEIGHT
+        const maxBoxesByWeight = Math.floor(container.maxWeightKg / weight);
+
+        // Use the LOWER of the two
+        const boxesPerContainer = Math.min(maxBoxesByVolume, maxBoxesByWeight);
+        const limitedBy = maxBoxesByVolume <= maxBoxesByWeight ? 'volume' : 'weight';
+
+        // Volume & weight utilization
+        const boxVolume = (length * width * height) / 1000000;
+        const containerVolume = (container.lengthCm * container.widthCm * container.heightCm) / 1000000;
+        const volumeUtilization = Math.round((boxesPerContainer * boxVolume / containerVolume) * 100);
+        const weightPerContainer = boxesPerContainer * weight;
+        const weightUtilization = Math.round((weightPerContainer / container.maxWeightKg) * 100);
+
+        setCalcResult({
+            boxesPerContainer,
+            limitedBy,
+            maxByVolume: maxBoxesByVolume,
+            maxByWeight: maxBoxesByWeight,
+            volumeUtilization,
+            weightUtilization,
+            weightPerContainer,
+            orientation: bestOrientation,
+            // Calculate total containers based on quantity from main form
+            totalQuantity: parseFloat(quantity) || 0,
+            totalContainers: quantity ? Math.ceil(parseFloat(quantity) / boxesPerContainer) : 0,
+            fullContainers: quantity ? Math.floor(parseFloat(quantity) / boxesPerContainer) : 0,
+            remainingBoxes: quantity ? parseFloat(quantity) % boxesPerContainer : 0,
+            lastContainerPercent: quantity && parseFloat(quantity) % boxesPerContainer > 0
+                ? Math.round((parseFloat(quantity) % boxesPerContainer) / boxesPerContainer * 100)
+                : 100
+        });
+    };
+
+    // Apply calculated qty to main form
+    const applyCalcResult = () => {
+        if (calcResult) {
+            setQtyPerContainer(calcResult.boxesPerContainer.toString());
+            setShowCalcModal(false);
+            setCalcResult(null);
+            setBoxLength(''); setBoxWidth(''); setBoxHeight(''); setBoxWeight('');
+        }
+    };
+
     if (loading) {
         return (
             <div className="loading-screen">
@@ -433,9 +542,19 @@ export default function Home() {
                                     onChange={(e) => setQtyPerContainer(e.target.value)}
                                     min="1"
                                 />
-                                <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-                                    How much of this product fits in one {selectedContainerType?.code || 'container'}?
-                                </small>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--space-2)' }}>
+                                    <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
+                                        How much of this product fits in one {selectedContainerType?.code || 'container'}?
+                                    </small>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowCalcModal(true); setCalcResult(null); setCalcError(''); }}
+                                        className="btn btn-secondary btn-sm"
+                                        style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-1) var(--space-2)' }}
+                                    >
+                                        📐 Calculate
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -855,6 +974,139 @@ export default function Home() {
                     <p>© {new Date().getFullYear()} Arovave Global. All rights reserved.</p>
                 </footer>
             </div>
+
+            {/* Container Calculator Modal */}
+            <ContainerCalcModal
+                show={showCalcModal}
+                onClose={() => setShowCalcModal(false)}
+                containerCode={selectedContainerType?.code || '20FT'}
+                onCalc={handleContainerCalc}
+                calcResult={calcResult}
+                calcError={calcError}
+                boxLength={boxLength}
+                setBoxLength={setBoxLength}
+                boxWidth={boxWidth}
+                setBoxWidth={setBoxWidth}
+                boxHeight={boxHeight}
+                setBoxHeight={setBoxHeight}
+                boxWeight={boxWeight}
+                setBoxWeight={setBoxWeight}
+                onApply={applyCalcResult}
+                CONTAINER_SPECS={CONTAINER_SPECS}
+            />
         </>
+    );
+}
+
+// Container Calculator Modal Component - integrated at the end of the file
+function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, calcError, boxLength, setBoxLength, boxWidth, setBoxWidth, boxHeight, setBoxHeight, boxWeight, setBoxWeight, onApply, CONTAINER_SPECS }) {
+    if (!show) return null;
+    const container = CONTAINER_SPECS[containerCode] || CONTAINER_SPECS['20FT'];
+
+    return (
+        <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.8)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 'var(--space-4)'
+        }} onClick={onClose}>
+            <div style={{
+                background: 'var(--bg-secondary)', borderRadius: 'var(--radius-xl)',
+                padding: 'var(--space-6)', maxWidth: '500px', width: '100%',
+                maxHeight: '90vh', overflowY: 'auto'
+            }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+                    <h3 style={{ margin: 0 }}>📦 Calculate Box Capacity</h3>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>×</button>
+                </div>
+
+                {/* Container Info */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-2)', padding: 'var(--space-3)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-4)', textAlign: 'center', fontSize: 'var(--text-xs)' }}>
+                    <div><div style={{ color: 'var(--text-muted)' }}>Container</div><div style={{ fontWeight: 'bold', color: 'var(--primary-400)' }}>{containerCode}</div></div>
+                    <div><div style={{ color: 'var(--text-muted)' }}>L</div><div>{(container.lengthCm / 100).toFixed(1)}m</div></div>
+                    <div><div style={{ color: 'var(--text-muted)' }}>W</div><div>{(container.widthCm / 100).toFixed(2)}m</div></div>
+                    <div><div style={{ color: 'var(--text-muted)' }}>H</div><div>{(container.heightCm / 100).toFixed(2)}m</div></div>
+                </div>
+
+                {calcError && <div style={{ background: 'var(--error-light)', color: 'var(--error)', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)', fontSize: 'var(--text-sm)' }}>{calcError}</div>}
+
+                {/* Box Dimensions */}
+                <div style={{ marginBottom: 'var(--space-3)' }}>
+                    <label style={{ fontSize: 'var(--text-sm)', fontWeight: '600', marginBottom: 'var(--space-2)', display: 'block' }}>📦 Box Dimensions (cm)</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-2)' }}>
+                        <input type="number" className="form-input" placeholder="Length" value={boxLength} onChange={e => setBoxLength(e.target.value)} min="1" style={{ fontSize: 'var(--text-sm)' }} />
+                        <input type="number" className="form-input" placeholder="Width" value={boxWidth} onChange={e => setBoxWidth(e.target.value)} min="1" style={{ fontSize: 'var(--text-sm)' }} />
+                        <input type="number" className="form-input" placeholder="Height" value={boxHeight} onChange={e => setBoxHeight(e.target.value)} min="1" style={{ fontSize: 'var(--text-sm)' }} />
+                    </div>
+                </div>
+
+                {/* Weight */}
+                <div style={{ marginBottom: 'var(--space-4)' }}>
+                    <label style={{ fontSize: 'var(--text-sm)', fontWeight: '600', marginBottom: 'var(--space-2)', display: 'block' }}>⚖️ Weight per Box (kg)</label>
+                    <input type="number" className="form-input" placeholder="e.g., 5" value={boxWeight} onChange={e => setBoxWeight(e.target.value)} min="0.1" step="0.1" style={{ fontSize: 'var(--text-sm)' }} />
+                </div>
+
+                <button className="btn btn-primary" onClick={onCalc} style={{ width: '100%', marginBottom: 'var(--space-4)' }}>🧮 Calculate</button>
+
+                {/* Results */}
+                {calcResult && (
+                    <div style={{ background: 'linear-gradient(135deg, rgba(0, 168, 168, 0.15), rgba(0, 168, 168, 0.05))', border: '2px solid var(--primary-500)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
+                        {/* Boxes per Container */}
+                        <div style={{ textAlign: 'center', marginBottom: 'var(--space-3)' }}>
+                            <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 'bold', color: 'var(--primary-400)' }}>{calcResult.boxesPerContainer}</div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>boxes per {containerCode}</div>
+                        </div>
+
+                        {/* Weight per Container */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', fontSize: 'var(--text-xs)', marginBottom: 'var(--space-3)' }}>
+                            <div style={{ padding: 'var(--space-2)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                                <div style={{ color: 'var(--text-muted)' }}>Weight/Container</div>
+                                <div style={{ fontWeight: '600', color: 'var(--accent-400)' }}>{calcResult.weightPerContainer.toLocaleString()} kg</div>
+                            </div>
+                            <div style={{ padding: 'var(--space-2)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                                <div style={{ color: 'var(--text-muted)' }}>Volume Used</div>
+                                <div style={{ fontWeight: '600' }}>{calcResult.volumeUtilization}%</div>
+                            </div>
+                        </div>
+
+                        {/* Total Container Breakdown - only show if quantity entered */}
+                        {calcResult.totalQuantity > 0 && (
+                            <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                <div style={{ textAlign: 'center', marginBottom: 'var(--space-2)' }}>
+                                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>For {calcResult.totalQuantity.toLocaleString()} boxes:</div>
+                                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'bold', color: 'var(--accent-400)' }}>
+                                        {calcResult.totalContainers} Container{calcResult.totalContainers > 1 ? 's' : ''}
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'center', fontSize: 'var(--text-sm)' }}>
+                                    {calcResult.fullContainers > 0 && (
+                                        <span style={{ color: 'var(--success)' }}>
+                                            ✅ {calcResult.fullContainers} Full
+                                        </span>
+                                    )}
+                                    {calcResult.fullContainers > 0 && calcResult.remainingBoxes > 0 && ' + '}
+                                    {calcResult.remainingBoxes > 0 && (
+                                        <span style={{ color: 'var(--warning)' }}>
+                                            📦 1 at {calcResult.lastContainerPercent}% ({calcResult.remainingBoxes} boxes)
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {!calcResult.totalQuantity && (
+                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 'var(--space-3)', fontStyle: 'italic' }}>
+                                💡 Enter "Total Quantity" in main form to see container breakdown
+                            </div>
+                        )}
+
+                        <div style={{ fontSize: 'var(--text-xs)', color: calcResult.limitedBy === 'weight' ? 'var(--warning)' : 'var(--text-muted)', textAlign: 'center', marginBottom: 'var(--space-3)' }}>
+                            ⚠️ Limited by {calcResult.limitedBy} (max {calcResult.limitedBy === 'weight' ? calcResult.maxByWeight : calcResult.maxByVolume} boxes)
+                        </div>
+                        <button className="btn btn-accent" onClick={onApply} style={{ width: '100%' }}>✅ Use {calcResult.boxesPerContainer} per Container</button>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
