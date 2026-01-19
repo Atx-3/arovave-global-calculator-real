@@ -1,0 +1,506 @@
+/**
+ * AROVAVE GLOBAL - Export Rate Calculator Engine v2
+ * Container-Based FCL Export Pricing System
+ * 
+ * Calculation Flow:
+ * EX-FACTORY → Container Count → Local Freight → Handling → Port → FOB
+ * → ECGC → Int'l Freight → Currency → Insurance → Bank → Profit → CIF
+ */
+
+// ============================================
+// CONTAINER CALCULATION
+// ============================================
+
+/**
+ * Calculate number of containers required
+ * @param {number} quantity - Total quantity ordered
+ * @param {number} qtyPerContainer - How much fits in 1 container (user defined)
+ * @returns {number} Number of containers needed
+ */
+export function calculateContainers(quantity, qtyPerContainer) {
+    if (!quantity || !qtyPerContainer || qtyPerContainer <= 0) {
+        return 1;
+    }
+    return Math.ceil(quantity / qtyPerContainer);
+}
+
+// ============================================
+// CURRENCY CONVERSION
+// ============================================
+
+/**
+ * Convert foreign currency to INR with bank margin
+ * @param {number} amount - Amount in foreign currency
+ * @param {number} exchangeRate - Base exchange rate to INR
+ * @param {number} bankMargin - Bank's margin (e.g., 0.50)
+ * @returns {number} Amount in INR
+ */
+export function convertToINR(amount, exchangeRate, bankMargin = 0) {
+    const effectiveRate = exchangeRate + bankMargin;
+    return amount * effectiveRate;
+}
+
+/**
+ * Convert INR to USD for display
+ * @param {number} amountINR
+ * @param {number} usdRate
+ * @returns {number}
+ */
+export function convertToUSD(amountINR, usdRate) {
+    if (!usdRate || usdRate <= 0) return 0;
+    return amountINR / usdRate;
+}
+
+// ============================================
+// COST AGGREGATION
+// ============================================
+
+/**
+ * Calculate costs based on charge type
+ * @param {Array} costHeads - Array of cost head objects
+ * @param {number} containerCount - Number of containers
+ * @param {number} quantity - Total quantity
+ * @param {number} baseValue - Base value for percentage calculations
+ * @returns {Object} Categorized costs
+ */
+export function calculateCostHeads(costHeads, containerCount, quantity, baseValue = 0) {
+    let perShipmentTotal = 0;
+    let perContainerTotal = 0;
+    const breakdown = [];
+
+    costHeads.forEach(cost => {
+        if (!cost.is_active) return;
+
+        let amount = 0;
+        let displayAmount = 0;
+
+        if (cost.calculation_base === 'percentage') {
+            amount = baseValue * (cost.percentage_rate / 100);
+            displayAmount = amount;
+        } else {
+            amount = parseFloat(cost.base_amount) || 0;
+
+            if (cost.charge_type === 'per_container') {
+                displayAmount = amount * containerCount;
+                perContainerTotal += displayAmount;
+            } else if (cost.charge_type === 'per_unit') {
+                displayAmount = amount * quantity;
+                perShipmentTotal += displayAmount;
+            } else {
+                // per_shipment
+                displayAmount = amount;
+                perShipmentTotal += displayAmount;
+            }
+        }
+
+        if (displayAmount > 0) {
+            breakdown.push({
+                name: cost.name,
+                chargeType: cost.charge_type,
+                unitAmount: amount,
+                quantity: cost.charge_type === 'per_container' ? containerCount : 1,
+                total: displayAmount
+            });
+        }
+    });
+
+    return {
+        perShipment: roundToTwo(perShipmentTotal),
+        perContainer: roundToTwo(perContainerTotal),
+        total: roundToTwo(perShipmentTotal + perContainerTotal),
+        breakdown
+    };
+}
+
+// ============================================
+// MAIN CALCULATION ENGINE
+// ============================================
+
+/**
+ * Complete export pricing calculation
+ * @param {Object} params - All input parameters
+ * @returns {Object} Complete pricing breakdown
+ */
+export function calculateExportPricing({
+    // Product & Quantity
+    product,
+    quantity,
+
+    // Container
+    containerType,
+    qtyPerContainer,
+
+    // Locations
+    localFreightRate,  // Rate per container in INR
+
+    // Port charges
+    portHandlingPerContainer,
+    chaCharges,
+    customsClearance,
+
+    // Cost heads
+    costHeads = [],
+
+    // Certifications
+    certifications = [],
+
+    // International Freight
+    freightRate,  // Per container in foreign currency
+    freightCurrency = 'USD',
+    freightConversionRate = 1.0,
+    freightGST = 5,
+
+    // Currency settings
+    exchangeRate = 83.50,
+    bankMargin = 0.50,
+
+    // ECGC
+    ecgcRate = 0.50,
+
+    // Insurance
+    insuranceRate = 0.50,
+    minInsurance = 5000,
+
+    // Bank charges
+    bankChargeRate = 0.25,
+
+    // Profit
+    profitRate = 5.0,
+    profitType = 'percentage',
+
+    // Display currency
+    displayCurrency = 'USD'
+}) {
+
+    // ============================================
+    // STEP 1: CONTAINER CALCULATION
+    // ============================================
+    const containerCount = calculateContainers(quantity, qtyPerContainer);
+
+    // ============================================
+    // STEP 2: EX-FACTORY COST
+    // ============================================
+    const basePrice = parseFloat(product.base_price_usd) || 0;
+    const exFactoryUSD = basePrice * quantity;
+    const exFactoryINR = convertToINR(exFactoryUSD, exchangeRate, 0);
+
+    // ============================================
+    // STEP 3: LOCAL FREIGHT (Per Container)
+    // ============================================
+    const localFreightPerContainer = parseFloat(localFreightRate) || 0;
+    const localFreightTotal = localFreightPerContainer * containerCount;
+
+    // ============================================
+    // STEP 4: HANDLING & LABOUR (From Cost Heads)
+    // ============================================
+    const handlingCosts = calculateCostHeads(
+        costHeads.filter(c => c.category === 'handling'),
+        containerCount,
+        quantity,
+        exFactoryINR
+    );
+
+    // ============================================
+    // STEP 5: PORT CHARGES
+    // ============================================
+    const portHandlingTotal = (parseFloat(portHandlingPerContainer) || 0) * containerCount;
+    const chaTotal = parseFloat(chaCharges) || 0;  // Per shipment
+    const customsTotal = parseFloat(customsClearance) || 0;  // Per shipment
+
+    const portCosts = {
+        handling: portHandlingTotal,
+        cha: chaTotal,
+        customs: customsTotal,
+        total: portHandlingTotal + chaTotal + customsTotal
+    };
+
+    // ============================================
+    // STEP 6: MISCELLANEOUS CHARGES
+    // ============================================
+    const miscCosts = calculateCostHeads(
+        costHeads.filter(c => c.category === 'misc'),
+        containerCount,
+        quantity,
+        exFactoryINR
+    );
+
+    // ============================================
+    // STEP 7: CERTIFICATIONS
+    // ============================================
+    let certificationTotal = 0;
+    const certBreakdown = [];
+
+    certifications.forEach(cert => {
+        let cost = 0;
+        if (cert.cost_percentage > 0) {
+            cost = exFactoryINR * (cert.cost_percentage / 100);
+        } else {
+            cost = parseFloat(cert.cost_flat) || 0;
+            if (cert.charge_type === 'per_container') {
+                cost = cost * containerCount;
+            }
+        }
+        certificationTotal += cost;
+        if (cost > 0) {
+            certBreakdown.push({ name: cert.name, cost: roundToTwo(cost) });
+        }
+    });
+
+    // ============================================
+    // STEP 8: FOB CALCULATION
+    // ============================================
+    const fobINR = exFactoryINR
+        + localFreightTotal
+        + handlingCosts.total
+        + portCosts.total
+        + miscCosts.total
+        + certificationTotal;
+
+    const fobUSD = convertToUSD(fobINR, exchangeRate);
+
+    // ============================================
+    // STEP 9: ECGC (Export Credit Guarantee)
+    // ============================================
+    const ecgcAmount = fobINR * (ecgcRate / 100);
+
+    // ============================================
+    // STEP 10: INTERNATIONAL FREIGHT
+    // ============================================
+    const freightPerContainer = parseFloat(freightRate) || 0;
+    const freightTotalForeign = freightPerContainer * containerCount;
+
+    // Apply freight conversion rate
+    const freightAdjusted = freightTotalForeign * (parseFloat(freightConversionRate) || 1);
+
+    // Convert to INR with bank margin
+    const freightINR = convertToINR(freightAdjusted, exchangeRate, bankMargin);
+
+    // Add GST on freight
+    const freightGSTAmount = freightINR * (freightGST / 100);
+    const freightWithGST = freightINR + freightGSTAmount;
+
+    // ============================================
+    // STEP 11: INSURANCE
+    // ============================================
+    // Insurance is calculated on CIF, so we need iterative calculation
+    // CIF = FOB + Freight + Insurance
+    // Insurance = InsuranceRate% × CIF
+    // So: Insurance = InsuranceRate% × (FOB + Freight + Insurance)
+    // Insurance × (1 - InsuranceRate%) = InsuranceRate% × (FOB + Freight)
+    // Insurance = (InsuranceRate% × (FOB + Freight)) / (1 - InsuranceRate%)
+
+    const preCifBase = fobINR + ecgcAmount + freightWithGST;
+    let insuranceAmount = (preCifBase * (insuranceRate / 100)) / (1 - (insuranceRate / 100));
+
+    if (insuranceAmount < minInsurance) {
+        insuranceAmount = minInsurance;
+    }
+
+    // ============================================
+    // STEP 12: BANK CHARGES
+    // ============================================
+    const invoiceValue = preCifBase + insuranceAmount;
+    const bankCharges = invoiceValue * (bankChargeRate / 100);
+
+    // ============================================
+    // STEP 13: PROFIT MARGIN
+    // ============================================
+    const costBase = invoiceValue + bankCharges;
+    let profitAmount = 0;
+
+    if (profitType === 'percentage') {
+        profitAmount = costBase * (profitRate / 100);
+    } else if (profitType === 'per_container') {
+        profitAmount = profitRate * containerCount;
+    } else if (profitType === 'per_unit') {
+        profitAmount = profitRate * quantity;
+    } else {
+        profitAmount = profitRate;  // Fixed amount
+    }
+
+    // ============================================
+    // STEP 14: FINAL CIF
+    // ============================================
+    const cifINR = costBase + profitAmount;
+    const cifUSD = convertToUSD(cifINR, exchangeRate);
+
+    // ============================================
+    // RETURN COMPLETE BREAKDOWN
+    // ============================================
+    return {
+        // Container info
+        containerType: containerType?.name || 'N/A',
+        containerCode: containerType?.code || 'N/A',
+        qtyPerContainer,
+        containerCount,
+
+        // Main prices
+        exFactory: {
+            inr: roundToTwo(exFactoryINR),
+            usd: roundToTwo(exFactoryUSD)
+        },
+        fob: {
+            inr: roundToTwo(fobINR),
+            usd: roundToTwo(fobUSD)
+        },
+        cif: {
+            inr: roundToTwo(cifINR),
+            usd: roundToTwo(cifUSD)
+        },
+
+        // Per unit prices
+        perUnit: {
+            exFactory: roundToTwo(exFactoryUSD / quantity),
+            fob: roundToTwo(fobUSD / quantity),
+            cif: roundToTwo(cifUSD / quantity)
+        },
+
+        // Detailed breakdown
+        breakdown: {
+            productBase: {
+                label: 'Product Base Price',
+                perUnit: basePrice,
+                quantity,
+                total: roundToTwo(exFactoryINR),
+                chargeType: 'per_unit'
+            },
+            localFreight: {
+                label: 'Local Freight',
+                perContainer: localFreightPerContainer,
+                containers: containerCount,
+                total: roundToTwo(localFreightTotal),
+                chargeType: 'per_container'
+            },
+            handling: handlingCosts,
+            port: {
+                label: 'Port Charges',
+                handling: roundToTwo(portHandlingTotal),
+                cha: roundToTwo(chaTotal),
+                customs: roundToTwo(customsTotal),
+                total: roundToTwo(portCosts.total),
+                chargeType: 'mixed'
+            },
+            misc: miscCosts,
+            certifications: {
+                items: certBreakdown,
+                total: roundToTwo(certificationTotal)
+            },
+            ecgc: {
+                label: 'ECGC Premium',
+                rate: ecgcRate,
+                total: roundToTwo(ecgcAmount),
+                chargeType: 'percentage'
+            },
+            freight: {
+                label: 'International Freight',
+                perContainer: freightPerContainer,
+                containers: containerCount,
+                currency: freightCurrency,
+                foreignTotal: roundToTwo(freightTotalForeign),
+                conversionRate: freightConversionRate,
+                exchangeRate: exchangeRate + bankMargin,
+                inrTotal: roundToTwo(freightINR),
+                gstRate: freightGST,
+                gstAmount: roundToTwo(freightGSTAmount),
+                totalWithGST: roundToTwo(freightWithGST),
+                chargeType: 'per_container'
+            },
+            insurance: {
+                label: 'Marine Insurance',
+                rate: insuranceRate,
+                total: roundToTwo(insuranceAmount),
+                chargeType: 'percentage'
+            },
+            bankCharges: {
+                label: 'Bank Charges',
+                rate: bankChargeRate,
+                total: roundToTwo(bankCharges),
+                chargeType: 'percentage'
+            },
+            profit: {
+                label: 'Company Margin',
+                type: profitType,
+                rate: profitRate,
+                total: roundToTwo(profitAmount)
+            }
+        },
+
+        // Summary by charge type
+        summary: {
+            perShipmentCosts: roundToTwo(
+                handlingCosts.perShipment +
+                chaTotal +
+                customsTotal +
+                miscCosts.perShipment +
+                certificationTotal +
+                ecgcAmount +
+                insuranceAmount +
+                bankCharges +
+                profitAmount
+            ),
+            perContainerCosts: roundToTwo(
+                localFreightTotal +
+                handlingCosts.perContainer +
+                portHandlingTotal +
+                miscCosts.perContainer +
+                freightWithGST
+            )
+        },
+
+        // Currency info
+        currency: {
+            exchange: exchangeRate,
+            bankMargin,
+            effective: exchangeRate + bankMargin
+        }
+    };
+}
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
+/**
+ * Round to 2 decimal places
+ */
+function roundToTwo(value) {
+    return Math.round((value || 0) * 100) / 100;
+}
+
+/**
+ * Format currency (INR)
+ */
+export function formatINR(amount) {
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount || 0);
+}
+
+/**
+ * Format currency (USD)
+ */
+export function formatUSD(amount) {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount || 0);
+}
+
+/**
+ * Format number with commas (Indian style)
+ */
+export function formatNumber(num) {
+    return new Intl.NumberFormat('en-IN').format(num || 0);
+}
+
+/**
+ * Format as percentage
+ */
+export function formatPercent(rate) {
+    return `${rate}%`;
+}
