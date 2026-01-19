@@ -49,6 +49,8 @@ export default function Home() {
 
     // Calculated
     const [containerCount, setContainerCount] = useState(0);
+    const [appliedBoxWeight, setAppliedBoxWeight] = useState(0); // Weight per box from calculator
+    const [calculatedBoxes, setCalculatedBoxes] = useState(0); // Total boxes calculated from weight
 
     // UI State
     const [loading, setLoading] = useState(true);
@@ -149,14 +151,24 @@ export default function Home() {
 
     // Calculate container count when quantity or qty per container changes
     useEffect(() => {
-        if (quantity && qtyPerContainer) {
+        if (quantity && qtyPerContainer && appliedBoxWeight > 0) {
+            // quantity is total weight in kg, calculate total boxes first
+            const totalWeight = parseFloat(quantity);
+            const totalBoxes = Math.ceil(totalWeight / appliedBoxWeight);
+            setCalculatedBoxes(totalBoxes);
+            const count = Math.ceil(totalBoxes / parseFloat(qtyPerContainer));
+            setContainerCount(count);
+        } else if (quantity && qtyPerContainer) {
+            // Fallback if no box weight applied yet (old behavior)
             const count = calculateContainers(parseFloat(quantity), parseFloat(qtyPerContainer));
             setContainerCount(count);
+            setCalculatedBoxes(0);
         } else {
             setContainerCount(0);
+            setCalculatedBoxes(0);
         }
         setResult(null);
-    }, [quantity, qtyPerContainer]);
+    }, [quantity, qtyPerContainer, appliedBoxWeight]);
 
     // Handle product selection
     const handleProductChange = (e) => {
@@ -361,6 +373,10 @@ export default function Home() {
         const weightPerContainer = boxesPerContainer * weight;
         const weightUtilization = Math.round((weightPerContainer / container.maxWeightKg) * 100);
 
+        // quantity now represents total weight in kg
+        const totalWeightKg = parseFloat(quantity) || 0;
+        const totalBoxes = totalWeightKg > 0 ? Math.ceil(totalWeightKg / weight) : 0;
+
         setCalcResult({
             boxesPerContainer,
             limitedBy,
@@ -370,14 +386,16 @@ export default function Home() {
             weightUtilization,
             weightPerContainer,
             orientation: bestOrientation,
-            // Calculate total containers based on quantity from main form
-            totalQuantity: parseFloat(quantity) || 0,
-            totalContainers: quantity ? Math.ceil(parseFloat(quantity) / boxesPerContainer) : 0,
-            fullContainers: quantity ? Math.floor(parseFloat(quantity) / boxesPerContainer) : 0,
-            remainingBoxes: quantity ? parseFloat(quantity) % boxesPerContainer : 0,
-            lastContainerPercent: quantity && parseFloat(quantity) % boxesPerContainer > 0
-                ? Math.round((parseFloat(quantity) % boxesPerContainer) / boxesPerContainer * 100)
-                : 100
+            // Calculate from total weight
+            totalWeightKg,
+            totalBoxes,
+            totalContainers: totalBoxes > 0 ? Math.ceil(totalBoxes / boxesPerContainer) : 0,
+            fullContainers: totalBoxes > 0 ? Math.floor(totalBoxes / boxesPerContainer) : 0,
+            remainingBoxes: totalBoxes > 0 ? totalBoxes % boxesPerContainer : 0,
+            lastContainerPercent: totalBoxes > 0 && totalBoxes % boxesPerContainer > 0
+                ? Math.round((totalBoxes % boxesPerContainer) / boxesPerContainer * 100)
+                : 100,
+            boxWeight: weight
         });
     };
 
@@ -385,6 +403,7 @@ export default function Home() {
     const applyCalcResult = () => {
         if (calcResult) {
             setQtyPerContainer(calcResult.boxesPerContainer.toString());
+            setAppliedBoxWeight(calcResult.boxWeight); // Store box weight for calculations
             setShowCalcModal(false);
             setCalcResult(null);
             setBoxLength(''); setBoxWidth(''); setBoxHeight(''); setBoxWeight('');
@@ -518,33 +537,36 @@ export default function Home() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
                             <div className="form-group">
                                 <label className="form-label">
-                                    Total Quantity ({selectedProduct?.unit || 'Units'}) *
+                                    Total Weight to Ship (kg) *
                                 </label>
                                 <input
                                     type="number"
                                     className="form-input"
-                                    placeholder="e.g., 50000"
+                                    placeholder="e.g., 25000"
                                     value={quantity}
                                     onChange={(e) => setQuantity(e.target.value)}
                                     min="1"
                                 />
+                                <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
+                                    Enter total weight in kg. Use Calculate to find boxes.
+                                </small>
                             </div>
 
                             <div className="form-group">
                                 <label className="form-label">
-                                    Qty per Container ({selectedProduct?.unit || 'Units'}) *
+                                    Boxes per Container *
                                 </label>
                                 <input
                                     type="number"
                                     className="form-input"
-                                    placeholder="How much fits in 1 container"
+                                    placeholder="Boxes that fit in 1 container"
                                     value={qtyPerContainer}
                                     onChange={(e) => setQtyPerContainer(e.target.value)}
                                     min="1"
                                 />
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--space-2)' }}>
                                     <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-                                        How much of this product fits in one {selectedContainerType?.code || 'container'}?
+                                        How many boxes fit in one {selectedContainerType?.code || 'container'}?
                                     </small>
                                     <button
                                         type="button"
@@ -561,25 +583,51 @@ export default function Home() {
                         {/* Container Count Display */}
                         {containerCount > 0 && (
                             <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 'var(--space-4)',
                                 padding: 'var(--space-4)',
                                 background: 'linear-gradient(135deg, rgba(0, 168, 168, 0.2), rgba(0, 168, 168, 0.1))',
                                 border: '2px solid var(--primary-500)',
                                 borderRadius: 'var(--radius-lg)',
                                 marginBottom: 'var(--space-5)'
                             }}>
-                                <span style={{ fontSize: 'var(--text-3xl)' }}>📦</span>
-                                <div>
-                                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--primary-400)' }}>
-                                        {containerCount} Container{containerCount > 1 ? 's' : ''} Required
-                                    </div>
-                                    <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-                                        {containerCount} × {selectedContainerType?.code} ({formatNumber(quantity)} {selectedProduct?.unit || 'units'} total)
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-4)', marginBottom: 'var(--space-2)' }}>
+                                    <span style={{ fontSize: 'var(--text-3xl)' }}>📦</span>
+                                    <div>
+                                        <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--primary-400)' }}>
+                                            {containerCount} Container{containerCount > 1 ? 's' : ''} Required
+                                        </div>
+                                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                                            {containerCount} × {selectedContainerType?.code}
+                                        </div>
                                     </div>
                                 </div>
+                                {/* Show detailed breakdown if box weight is applied */}
+                                {appliedBoxWeight > 0 && calculatedBoxes > 0 && (
+                                    <div style={{ textAlign: 'center', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-color)' }}>
+                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)' }}>
+                                            {formatNumber(quantity)} kg ÷ {appliedBoxWeight} kg/box = <strong style={{ color: 'var(--accent-400)' }}>{formatNumber(calculatedBoxes)} boxes</strong>
+                                        </div>
+                                        <div style={{ fontSize: 'var(--text-sm)' }}>
+                                            {(() => {
+                                                const fullContainers = Math.floor(calculatedBoxes / parseFloat(qtyPerContainer));
+                                                const remainingBoxes = calculatedBoxes % parseFloat(qtyPerContainer);
+                                                const lastPercent = remainingBoxes > 0 ? Math.round((remainingBoxes / parseFloat(qtyPerContainer)) * 100) : 0;
+                                                return (
+                                                    <>
+                                                        {fullContainers > 0 && <span style={{ color: 'var(--success)' }}>✅ {fullContainers} Full</span>}
+                                                        {fullContainers > 0 && remainingBoxes > 0 && ' + '}
+                                                        {remainingBoxes > 0 && <span style={{ color: 'var(--warning)' }}>📦 1 at {lastPercent}% ({remainingBoxes} boxes)</span>}
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    </div>
+                                )}
+                                {/* Warning if no box weight applied */}
+                                {appliedBoxWeight === 0 && (
+                                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)', textAlign: 'center', marginTop: 'var(--space-2)' }}>
+                                        ⚠️ Use "Calculate" to get accurate container breakdown
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -680,303 +728,306 @@ export default function Home() {
                                 'CALCULATE RATE'
                             )}
                         </button>
-                    </div>
+                    </div >
 
                     {/* Results */}
-                    {result && (
-                        <div className="result-card fade-in">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
-                                <h3>Your Export Quote</h3>
-                                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                                    <button
-                                        className={`btn btn-sm ${showCurrency === 'INR' ? 'btn-primary' : 'btn-secondary'}`}
-                                        onClick={() => setShowCurrency('INR')}
-                                    >₹ INR</button>
-                                    <button
-                                        className={`btn btn-sm ${showCurrency === 'USD' ? 'btn-primary' : 'btn-secondary'}`}
-                                        onClick={() => setShowCurrency('USD')}
-                                    >$ USD</button>
+                    {
+                        result && (
+                            <div className="result-card fade-in">
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
+                                    <h3>Your Export Quote</h3>
+                                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                                        <button
+                                            className={`btn btn-sm ${showCurrency === 'INR' ? 'btn-primary' : 'btn-secondary'}`}
+                                            onClick={() => setShowCurrency('INR')}
+                                        >₹ INR</button>
+                                        <button
+                                            className={`btn btn-sm ${showCurrency === 'USD' ? 'btn-primary' : 'btn-secondary'}`}
+                                            onClick={() => setShowCurrency('USD')}
+                                        >$ USD</button>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Container Info */}
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 'var(--space-4)',
-                                padding: 'var(--space-4)',
-                                background: 'var(--bg-glass)',
-                                borderRadius: 'var(--radius-lg)',
-                                marginBottom: 'var(--space-6)'
-                            }}>
-                                <span style={{ fontSize: 'var(--text-2xl)' }}>🚢</span>
-                                <div>
-                                    <div style={{ fontWeight: 'var(--font-semibold)' }}>
-                                        {result.containerCount} × {result.containerCode} Container{result.containerCount > 1 ? 's' : ''}
-                                    </div>
-                                    <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-                                        {result.factoryLocation} → {result.loadingPort} → {result.destinationPort}, {result.country}
+                                {/* Container Info */}
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 'var(--space-4)',
+                                    padding: 'var(--space-4)',
+                                    background: 'var(--bg-glass)',
+                                    borderRadius: 'var(--radius-lg)',
+                                    marginBottom: 'var(--space-6)'
+                                }}>
+                                    <span style={{ fontSize: 'var(--text-2xl)' }}>🚢</span>
+                                    <div>
+                                        <div style={{ fontWeight: 'var(--font-semibold)' }}>
+                                            {result.containerCount} × {result.containerCode} Container{result.containerCount > 1 ? 's' : ''}
+                                        </div>
+                                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                                            {result.factoryLocation} → {result.loadingPort} → {result.destinationPort}, {result.country}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Price Summary */}
-                            <div className="price-grid">
-                                <div className="price-item">
-                                    <div className="price-label">EX-Factory</div>
-                                    <div className="price-value">
-                                        {showCurrency === 'INR'
-                                            ? formatINR(result.pricing.exFactory.inr)
-                                            : formatUSD(result.pricing.exFactory.usd)}
+                                {/* Price Summary */}
+                                <div className="price-grid">
+                                    <div className="price-item">
+                                        <div className="price-label">EX-Factory</div>
+                                        <div className="price-value">
+                                            {showCurrency === 'INR'
+                                                ? formatINR(result.pricing.exFactory.inr)
+                                                : formatUSD(result.pricing.exFactory.usd)}
+                                        </div>
+                                    </div>
+                                    <div className="price-item">
+                                        <div className="price-label">FOB</div>
+                                        <div className="price-value">
+                                            {showCurrency === 'INR'
+                                                ? formatINR(result.pricing.fob.inr)
+                                                : formatUSD(result.pricing.fob.usd)}
+                                        </div>
+                                    </div>
+                                    <div className="price-item highlight">
+                                        <div className="price-label">CIF</div>
+                                        <div className="price-value accent">
+                                            {showCurrency === 'INR'
+                                                ? formatINR(result.pricing.cif.inr)
+                                                : formatUSD(result.pricing.cif.usd)}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="price-item">
-                                    <div className="price-label">FOB</div>
-                                    <div className="price-value">
-                                        {showCurrency === 'INR'
-                                            ? formatINR(result.pricing.fob.inr)
-                                            : formatUSD(result.pricing.fob.usd)}
-                                    </div>
-                                </div>
-                                <div className="price-item highlight">
-                                    <div className="price-label">CIF</div>
-                                    <div className="price-value accent">
-                                        {showCurrency === 'INR'
-                                            ? formatINR(result.pricing.cif.inr)
-                                            : formatUSD(result.pricing.cif.usd)}
-                                    </div>
-                                </div>
-                            </div>
 
-                            {/* Per Unit Prices */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(3, 1fr)',
-                                gap: 'var(--space-3)',
-                                marginTop: 'var(--space-4)',
-                                padding: 'var(--space-3)',
-                                background: 'var(--bg-glass)',
-                                borderRadius: 'var(--radius-md)',
-                                textAlign: 'center',
-                                fontSize: 'var(--text-sm)'
-                            }}>
-                                <div>
-                                    <div style={{ color: 'var(--text-muted)' }}>Per {result.unit}</div>
-                                    <div style={{ fontWeight: 'var(--font-semibold)' }}>
-                                        {formatUSD(result.pricing.perUnit.exFactory)}
+                                {/* Per Unit Prices */}
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(3, 1fr)',
+                                    gap: 'var(--space-3)',
+                                    marginTop: 'var(--space-4)',
+                                    padding: 'var(--space-3)',
+                                    background: 'var(--bg-glass)',
+                                    borderRadius: 'var(--radius-md)',
+                                    textAlign: 'center',
+                                    fontSize: 'var(--text-sm)'
+                                }}>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)' }}>Per {result.unit}</div>
+                                        <div style={{ fontWeight: 'var(--font-semibold)' }}>
+                                            {formatUSD(result.pricing.perUnit.exFactory)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)' }}>Per {result.unit}</div>
+                                        <div style={{ fontWeight: 'var(--font-semibold)' }}>
+                                            {formatUSD(result.pricing.perUnit.fob)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)' }}>Per {result.unit}</div>
+                                        <div style={{ fontWeight: 'var(--font-semibold)', color: 'var(--accent-400)' }}>
+                                            {formatUSD(result.pricing.perUnit.cif)}
+                                        </div>
                                     </div>
                                 </div>
-                                <div>
-                                    <div style={{ color: 'var(--text-muted)' }}>Per {result.unit}</div>
-                                    <div style={{ fontWeight: 'var(--font-semibold)' }}>
-                                        {formatUSD(result.pricing.perUnit.fob)}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div style={{ color: 'var(--text-muted)' }}>Per {result.unit}</div>
-                                    <div style={{ fontWeight: 'var(--font-semibold)', color: 'var(--accent-400)' }}>
-                                        {formatUSD(result.pricing.perUnit.cif)}
-                                    </div>
-                                </div>
-                            </div>
 
-                            {/* Cost Breakdown */}
-                            <h4 style={{ marginTop: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
-                                Cost Breakdown
-                            </h4>
-                            <table className="breakup-table">
-                                <thead>
-                                    <tr>
-                                        <th>Component</th>
-                                        <th>Type</th>
-                                        <th>Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {/* Product Base */}
-                                    <tr>
-                                        <td>Product ({formatNumber(result.quantity)} × {formatUSD(result.pricing.breakdown.productBase.perUnit)})</td>
-                                        <td><span className="badge badge-info">Per Unit</span></td>
-                                        <td>{formatINR(result.pricing.breakdown.productBase.total)}</td>
-                                    </tr>
-
-                                    {/* Local Freight */}
-                                    <tr>
-                                        <td>Local Freight ({result.containerCount} × {formatINR(result.pricing.breakdown.localFreight.perContainer)})</td>
-                                        <td><span className="badge badge-warning">Per Container</span></td>
-                                        <td>{formatINR(result.pricing.breakdown.localFreight.total)}</td>
-                                    </tr>
-
-                                    {/* Handling */}
-                                    {result.pricing.breakdown.handling.breakdown.map((item, idx) => (
-                                        <tr key={`handling-${idx}`}>
-                                            <td>{item.name} {item.chargeType === 'per_container' ? `(${item.quantity}×)` : ''}</td>
-                                            <td>
-                                                <span className={`badge ${item.chargeType === 'per_container' ? 'badge-warning' : 'badge-info'}`}>
-                                                    {item.chargeType === 'per_container' ? 'Per Container' : 'Per Shipment'}
-                                                </span>
-                                            </td>
-                                            <td>{formatINR(item.total)}</td>
+                                {/* Cost Breakdown */}
+                                <h4 style={{ marginTop: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
+                                    Cost Breakdown
+                                </h4>
+                                <table className="breakup-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Component</th>
+                                            <th>Type</th>
+                                            <th>Amount</th>
                                         </tr>
-                                    ))}
+                                    </thead>
+                                    <tbody>
+                                        {/* Product Base */}
+                                        <tr>
+                                            <td>Product ({formatNumber(result.quantity)} × {formatUSD(result.pricing.breakdown.productBase.perUnit)})</td>
+                                            <td><span className="badge badge-info">Per Unit</span></td>
+                                            <td>{formatINR(result.pricing.breakdown.productBase.total)}</td>
+                                        </tr>
 
-                                    {/* Port Charges */}
-                                    <tr>
-                                        <td>Port Handling ({result.containerCount}×)</td>
-                                        <td><span className="badge badge-warning">Per Container</span></td>
-                                        <td>{formatINR(result.pricing.breakdown.port.handling)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>CHA Charges</td>
-                                        <td><span className="badge badge-info">Per Shipment</span></td>
-                                        <td>{formatINR(result.pricing.breakdown.port.cha)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Customs Clearance</td>
-                                        <td><span className="badge badge-info">Per Shipment</span></td>
-                                        <td>{formatINR(result.pricing.breakdown.port.customs)}</td>
-                                    </tr>
+                                        {/* Local Freight */}
+                                        <tr>
+                                            <td>Local Freight ({result.containerCount} × {formatINR(result.pricing.breakdown.localFreight.perContainer)})</td>
+                                            <td><span className="badge badge-warning">Per Container</span></td>
+                                            <td>{formatINR(result.pricing.breakdown.localFreight.total)}</td>
+                                        </tr>
 
-                                    {/* Certifications */}
-                                    {result.pricing.breakdown.certifications.items.map((cert, idx) => (
-                                        <tr key={`cert-${idx}`}>
-                                            <td>{cert.name}</td>
+                                        {/* Handling */}
+                                        {result.pricing.breakdown.handling.breakdown.map((item, idx) => (
+                                            <tr key={`handling-${idx}`}>
+                                                <td>{item.name} {item.chargeType === 'per_container' ? `(${item.quantity}×)` : ''}</td>
+                                                <td>
+                                                    <span className={`badge ${item.chargeType === 'per_container' ? 'badge-warning' : 'badge-info'}`}>
+                                                        {item.chargeType === 'per_container' ? 'Per Container' : 'Per Shipment'}
+                                                    </span>
+                                                </td>
+                                                <td>{formatINR(item.total)}</td>
+                                            </tr>
+                                        ))}
+
+                                        {/* Port Charges */}
+                                        <tr>
+                                            <td>Port Handling ({result.containerCount}×)</td>
+                                            <td><span className="badge badge-warning">Per Container</span></td>
+                                            <td>{formatINR(result.pricing.breakdown.port.handling)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>CHA Charges</td>
                                             <td><span className="badge badge-info">Per Shipment</span></td>
-                                            <td>{formatINR(cert.cost)}</td>
+                                            <td>{formatINR(result.pricing.breakdown.port.cha)}</td>
                                         </tr>
-                                    ))}
+                                        <tr>
+                                            <td>Customs Clearance</td>
+                                            <td><span className="badge badge-info">Per Shipment</span></td>
+                                            <td>{formatINR(result.pricing.breakdown.port.customs)}</td>
+                                        </tr>
 
-                                    {/* FOB Subtotal */}
-                                    <tr style={{ background: 'var(--bg-glass)', fontWeight: 'var(--font-semibold)' }}>
-                                        <td colSpan="2">FOB Total</td>
-                                        <td>{formatINR(result.pricing.fob.inr)}</td>
-                                    </tr>
+                                        {/* Certifications */}
+                                        {result.pricing.breakdown.certifications.items.map((cert, idx) => (
+                                            <tr key={`cert-${idx}`}>
+                                                <td>{cert.name}</td>
+                                                <td><span className="badge badge-info">Per Shipment</span></td>
+                                                <td>{formatINR(cert.cost)}</td>
+                                            </tr>
+                                        ))}
 
-                                    {/* ECGC */}
-                                    <tr>
-                                        <td>ECGC Premium ({result.pricing.breakdown.ecgc.rate}%)</td>
-                                        <td><span className="badge badge-info">Percentage</span></td>
-                                        <td>{formatINR(result.pricing.breakdown.ecgc.total)}</td>
-                                    </tr>
+                                        {/* FOB Subtotal */}
+                                        <tr style={{ background: 'var(--bg-glass)', fontWeight: 'var(--font-semibold)' }}>
+                                            <td colSpan="2">FOB Total</td>
+                                            <td>{formatINR(result.pricing.fob.inr)}</td>
+                                        </tr>
 
-                                    {/* International Freight */}
-                                    <tr>
-                                        <td>
-                                            Int'l Freight ({result.containerCount} × {formatUSD(result.pricing.breakdown.freight.perContainer)})
-                                            <br />
-                                            <small style={{ color: 'var(--text-muted)' }}>
-                                                + {result.pricing.breakdown.freight.gstRate}% GST = {formatINR(result.pricing.breakdown.freight.totalWithGST)}
-                                            </small>
-                                        </td>
-                                        <td><span className="badge badge-warning">Per Container</span></td>
-                                        <td>{formatINR(result.pricing.breakdown.freight.totalWithGST)}</td>
-                                    </tr>
+                                        {/* ECGC */}
+                                        <tr>
+                                            <td>ECGC Premium ({result.pricing.breakdown.ecgc.rate}%)</td>
+                                            <td><span className="badge badge-info">Percentage</span></td>
+                                            <td>{formatINR(result.pricing.breakdown.ecgc.total)}</td>
+                                        </tr>
 
-                                    {/* Insurance */}
-                                    <tr>
-                                        <td>Marine Insurance ({result.pricing.breakdown.insurance.rate}%)</td>
-                                        <td><span className="badge badge-info">Percentage</span></td>
-                                        <td>{formatINR(result.pricing.breakdown.insurance.total)}</td>
-                                    </tr>
+                                        {/* International Freight */}
+                                        <tr>
+                                            <td>
+                                                Int'l Freight ({result.containerCount} × {formatUSD(result.pricing.breakdown.freight.perContainer)})
+                                                <br />
+                                                <small style={{ color: 'var(--text-muted)' }}>
+                                                    + {result.pricing.breakdown.freight.gstRate}% GST = {formatINR(result.pricing.breakdown.freight.totalWithGST)}
+                                                </small>
+                                            </td>
+                                            <td><span className="badge badge-warning">Per Container</span></td>
+                                            <td>{formatINR(result.pricing.breakdown.freight.totalWithGST)}</td>
+                                        </tr>
 
-                                    {/* Bank Charges */}
-                                    <tr>
-                                        <td>Bank Charges ({result.pricing.breakdown.bankCharges.rate}%)</td>
-                                        <td><span className="badge badge-info">Percentage</span></td>
-                                        <td>{formatINR(result.pricing.breakdown.bankCharges.total)}</td>
-                                    </tr>
+                                        {/* Insurance */}
+                                        <tr>
+                                            <td>Marine Insurance ({result.pricing.breakdown.insurance.rate}%)</td>
+                                            <td><span className="badge badge-info">Percentage</span></td>
+                                            <td>{formatINR(result.pricing.breakdown.insurance.total)}</td>
+                                        </tr>
 
-                                    {/* Profit */}
-                                    <tr>
-                                        <td>Company Margin ({result.pricing.breakdown.profit.rate}%)</td>
-                                        <td><span className="badge badge-success">Profit</span></td>
-                                        <td>{formatINR(result.pricing.breakdown.profit.total)}</td>
-                                    </tr>
+                                        {/* Bank Charges */}
+                                        <tr>
+                                            <td>Bank Charges ({result.pricing.breakdown.bankCharges.rate}%)</td>
+                                            <td><span className="badge badge-info">Percentage</span></td>
+                                            <td>{formatINR(result.pricing.breakdown.bankCharges.total)}</td>
+                                        </tr>
 
-                                    {/* CIF Total */}
-                                    <tr style={{ background: 'linear-gradient(135deg, rgba(0, 168, 168, 0.2), rgba(0, 168, 168, 0.1))', fontWeight: 'var(--font-bold)' }}>
-                                        <td colSpan="2">CIF Total</td>
-                                        <td style={{ color: 'var(--accent-400)' }}>{formatINR(result.pricing.cif.inr)}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                        {/* Profit */}
+                                        <tr>
+                                            <td>Company Margin ({result.pricing.breakdown.profit.rate}%)</td>
+                                            <td><span className="badge badge-success">Profit</span></td>
+                                            <td>{formatINR(result.pricing.breakdown.profit.total)}</td>
+                                        </tr>
 
-                            {/* Summary */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
-                                gap: 'var(--space-4)',
-                                marginTop: 'var(--space-6)'
-                            }}>
+                                        {/* CIF Total */}
+                                        <tr style={{ background: 'linear-gradient(135deg, rgba(0, 168, 168, 0.2), rgba(0, 168, 168, 0.1))', fontWeight: 'var(--font-bold)' }}>
+                                            <td colSpan="2">CIF Total</td>
+                                            <td style={{ color: 'var(--accent-400)' }}>{formatINR(result.pricing.cif.inr)}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                {/* Summary */}
                                 <div style={{
-                                    padding: 'var(--space-4)',
-                                    background: 'var(--bg-glass)',
-                                    borderRadius: 'var(--radius-lg)',
-                                    textAlign: 'center'
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr',
+                                    gap: 'var(--space-4)',
+                                    marginTop: 'var(--space-6)'
                                 }}>
-                                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>
-                                        Per-Shipment Costs (Fixed)
+                                    <div style={{
+                                        padding: 'var(--space-4)',
+                                        background: 'var(--bg-glass)',
+                                        borderRadius: 'var(--radius-lg)',
+                                        textAlign: 'center'
+                                    }}>
+                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>
+                                            Per-Shipment Costs (Fixed)
+                                        </div>
+                                        <div style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)' }}>
+                                            {formatINR(result.pricing.summary.perShipmentCosts)}
+                                        </div>
                                     </div>
-                                    <div style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)' }}>
-                                        {formatINR(result.pricing.summary.perShipmentCosts)}
+                                    <div style={{
+                                        padding: 'var(--space-4)',
+                                        background: 'var(--bg-glass)',
+                                        borderRadius: 'var(--radius-lg)',
+                                        textAlign: 'center'
+                                    }}>
+                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>
+                                            Per-Container Costs (× {result.containerCount})
+                                        </div>
+                                        <div style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)' }}>
+                                            {formatINR(result.pricing.summary.perContainerCosts)}
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Currency Info */}
                                 <div style={{
-                                    padding: 'var(--space-4)',
-                                    background: 'var(--bg-glass)',
-                                    borderRadius: 'var(--radius-lg)',
+                                    marginTop: 'var(--space-4)',
+                                    padding: 'var(--space-3)',
+                                    background: 'var(--bg-tertiary)',
+                                    borderRadius: 'var(--radius-md)',
+                                    fontSize: 'var(--text-xs)',
+                                    color: 'var(--text-muted)',
                                     textAlign: 'center'
                                 }}>
-                                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>
-                                        Per-Container Costs (× {result.containerCount})
-                                    </div>
-                                    <div style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)' }}>
-                                        {formatINR(result.pricing.summary.perContainerCosts)}
-                                    </div>
+                                    Exchange Rate: 1 USD = ₹{result.pricing.currency.exchange} |
+                                    Bank Margin: +₹{result.pricing.currency.bankMargin} |
+                                    Effective: ₹{result.pricing.currency.effective}
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="action-buttons">
+                                    <button className="btn btn-accent" onClick={handleDownloadPDF}>
+                                        📄 Download PDF
+                                    </button>
+                                    <button className="btn btn-secondary" onClick={handleWhatsAppShare}>
+                                        📱 Share WhatsApp
+                                    </button>
                                 </div>
                             </div>
-
-                            {/* Currency Info */}
-                            <div style={{
-                                marginTop: 'var(--space-4)',
-                                padding: 'var(--space-3)',
-                                background: 'var(--bg-tertiary)',
-                                borderRadius: 'var(--radius-md)',
-                                fontSize: 'var(--text-xs)',
-                                color: 'var(--text-muted)',
-                                textAlign: 'center'
-                            }}>
-                                Exchange Rate: 1 USD = ₹{result.pricing.currency.exchange} |
-                                Bank Margin: +₹{result.pricing.currency.bankMargin} |
-                                Effective: ₹{result.pricing.currency.effective}
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="action-buttons">
-                                <button className="btn btn-accent" onClick={handleDownloadPDF}>
-                                    📄 Download PDF
-                                </button>
-                                <button className="btn btn-secondary" onClick={handleWhatsAppShare}>
-                                    📱 Share WhatsApp
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </main>
+                        )
+                    }
+                </main >
 
                 {/* Footer */}
-                <footer style={{
+                < footer style={{
                     textAlign: 'center',
                     padding: 'var(--space-8) 0',
                     color: 'var(--text-muted)',
                     fontSize: 'var(--text-sm)'
-                }}>
+                }
+                }>
                     <p>© {new Date().getFullYear()} Arovave Global. All rights reserved.</p>
-                </footer>
-            </div>
+                </footer >
+            </div >
 
             {/* Container Calculator Modal */}
-            <ContainerCalcModal
+            < ContainerCalcModal
                 show={showCalcModal}
                 onClose={() => setShowCalcModal(false)}
                 containerCode={selectedContainerType?.code || '20FT'}
@@ -1069,13 +1120,15 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
                             </div>
                         </div>
 
-                        {/* Total Container Breakdown - only show if quantity entered */}
-                        {calcResult.totalQuantity > 0 && (
+                        {/* Total Container Breakdown - only show if weight entered */}
+                        {calcResult.totalWeightKg > 0 && (
                             <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
                                 <div style={{ textAlign: 'center', marginBottom: 'var(--space-2)' }}>
-                                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>For {calcResult.totalQuantity.toLocaleString()} boxes:</div>
+                                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                                        {calcResult.totalWeightKg.toLocaleString()} kg = {calcResult.totalBoxes.toLocaleString()} boxes
+                                    </div>
                                     <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'bold', color: 'var(--accent-400)' }}>
-                                        {calcResult.totalContainers} Container{calcResult.totalContainers > 1 ? 's' : ''}
+                                        {calcResult.totalContainers} Container{calcResult.totalContainers > 1 ? 's' : ''} Required
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'center', fontSize: 'var(--text-sm)' }}>
@@ -1094,9 +1147,9 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
                             </div>
                         )}
 
-                        {!calcResult.totalQuantity && (
+                        {!calcResult.totalWeightKg && (
                             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 'var(--space-3)', fontStyle: 'italic' }}>
-                                💡 Enter "Total Quantity" in main form to see container breakdown
+                                💡 Enter "Total Weight to Ship" in main form to see container breakdown
                             </div>
                         )}
 
