@@ -49,8 +49,6 @@ export default function Home() {
 
     // Calculated
     const [containerCount, setContainerCount] = useState(0);
-    const [appliedBoxWeight, setAppliedBoxWeight] = useState(0); // Weight per box from calculator
-    const [calculatedBoxes, setCalculatedBoxes] = useState(0); // Total boxes calculated from weight
 
     // UI State
     const [loading, setLoading] = useState(true);
@@ -151,24 +149,14 @@ export default function Home() {
 
     // Calculate container count when quantity or qty per container changes
     useEffect(() => {
-        if (quantity && qtyPerContainer && appliedBoxWeight > 0) {
-            // quantity is total weight in kg, calculate total boxes first
-            const totalWeight = parseFloat(quantity);
-            const totalBoxes = Math.ceil(totalWeight / appliedBoxWeight);
-            setCalculatedBoxes(totalBoxes);
-            const count = Math.ceil(totalBoxes / parseFloat(qtyPerContainer));
-            setContainerCount(count);
-        } else if (quantity && qtyPerContainer) {
-            // Fallback if no box weight applied yet (old behavior)
+        if (quantity && qtyPerContainer) {
             const count = calculateContainers(parseFloat(quantity), parseFloat(qtyPerContainer));
             setContainerCount(count);
-            setCalculatedBoxes(0);
         } else {
             setContainerCount(0);
-            setCalculatedBoxes(0);
         }
         setResult(null);
-    }, [quantity, qtyPerContainer, appliedBoxWeight]);
+    }, [quantity, qtyPerContainer]);
 
     // Handle product selection
     const handleProductChange = (e) => {
@@ -403,7 +391,6 @@ export default function Home() {
     const applyCalcResult = () => {
         if (calcResult) {
             setQtyPerContainer(calcResult.boxesPerContainer.toString());
-            setAppliedBoxWeight(calcResult.boxWeight); // Store box weight for calculations
             setShowCalcModal(false);
             setCalcResult(null);
             setBoxLength(''); setBoxWidth(''); setBoxHeight(''); setBoxWeight('');
@@ -537,29 +524,26 @@ export default function Home() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
                             <div className="form-group">
                                 <label className="form-label">
-                                    Total Weight to Ship (kg) *
+                                    Total Quantity ({selectedProduct?.unit || 'Units'}) *
                                 </label>
                                 <input
                                     type="number"
                                     className="form-input"
-                                    placeholder="e.g., 25000"
+                                    placeholder="e.g., 50000"
                                     value={quantity}
                                     onChange={(e) => setQuantity(e.target.value)}
                                     min="1"
                                 />
-                                <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-                                    Enter total weight in kg. Use Calculate to find boxes.
-                                </small>
                             </div>
 
                             <div className="form-group">
                                 <label className="form-label">
-                                    Boxes per Container *
+                                    Qty per Container ({selectedProduct?.unit || 'Units'}) *
                                 </label>
                                 <input
                                     type="number"
                                     className="form-input"
-                                    placeholder="Boxes that fit in 1 container"
+                                    placeholder="How much fits in 1 container"
                                     value={qtyPerContainer}
                                     onChange={(e) => setQtyPerContainer(e.target.value)}
                                     min="1"
@@ -583,51 +567,25 @@ export default function Home() {
                         {/* Container Count Display */}
                         {containerCount > 0 && (
                             <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 'var(--space-4)',
                                 padding: 'var(--space-4)',
                                 background: 'linear-gradient(135deg, rgba(0, 168, 168, 0.2), rgba(0, 168, 168, 0.1))',
                                 border: '2px solid var(--primary-500)',
                                 borderRadius: 'var(--radius-lg)',
                                 marginBottom: 'var(--space-5)'
                             }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-4)', marginBottom: 'var(--space-2)' }}>
-                                    <span style={{ fontSize: 'var(--text-3xl)' }}>📦</span>
-                                    <div>
-                                        <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--primary-400)' }}>
-                                            {containerCount} Container{containerCount > 1 ? 's' : ''} Required
-                                        </div>
-                                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-                                            {containerCount} × {selectedContainerType?.code}
-                                        </div>
+                                <span style={{ fontSize: 'var(--text-3xl)' }}>📦</span>
+                                <div>
+                                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--primary-400)' }}>
+                                        {containerCount} Container{containerCount > 1 ? 's' : ''} Required
+                                    </div>
+                                    <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                                        {containerCount} × {selectedContainerType?.code} ({formatNumber(quantity)} {selectedProduct?.unit || 'units'} total)
                                     </div>
                                 </div>
-                                {/* Show detailed breakdown if box weight is applied */}
-                                {appliedBoxWeight > 0 && calculatedBoxes > 0 && (
-                                    <div style={{ textAlign: 'center', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-color)' }}>
-                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)' }}>
-                                            {formatNumber(quantity)} kg ÷ {appliedBoxWeight} kg/box = <strong style={{ color: 'var(--accent-400)' }}>{formatNumber(calculatedBoxes)} boxes</strong>
-                                        </div>
-                                        <div style={{ fontSize: 'var(--text-sm)' }}>
-                                            {(() => {
-                                                const fullContainers = Math.floor(calculatedBoxes / parseFloat(qtyPerContainer));
-                                                const remainingBoxes = calculatedBoxes % parseFloat(qtyPerContainer);
-                                                const lastPercent = remainingBoxes > 0 ? Math.round((remainingBoxes / parseFloat(qtyPerContainer)) * 100) : 0;
-                                                return (
-                                                    <>
-                                                        {fullContainers > 0 && <span style={{ color: 'var(--success)' }}>✅ {fullContainers} Full</span>}
-                                                        {fullContainers > 0 && remainingBoxes > 0 && ' + '}
-                                                        {remainingBoxes > 0 && <span style={{ color: 'var(--warning)' }}>📦 1 at {lastPercent}% ({remainingBoxes} boxes)</span>}
-                                                    </>
-                                                );
-                                            })()}
-                                        </div>
-                                    </div>
-                                )}
-                                {/* Warning if no box weight applied */}
-                                {appliedBoxWeight === 0 && (
-                                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)', textAlign: 'center', marginTop: 'var(--space-2)' }}>
-                                        ⚠️ Use "Calculate" to get accurate container breakdown
-                                    </div>
-                                )}
                             </div>
                         )}
 
