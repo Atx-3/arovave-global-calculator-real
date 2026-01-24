@@ -169,7 +169,15 @@ export function calculateExportPricing({
     profitType = 'percentage',
 
     // Display currency
-    displayCurrency = 'USD'
+    displayCurrency = 'USD',
+
+    // Selected pricing tier: 'exFactory', 'fob', or 'cif'
+    // Profit will be calculated at the selected tier
+    selectedTier = 'cif',
+
+    // Custom charges (in INR)
+    packagingCharges = 0,
+    extraCharges = 0
 }) {
 
     // ============================================
@@ -178,11 +186,21 @@ export function calculateExportPricing({
     const containerCount = calculateContainers(quantity, qtyPerContainer);
 
     // ============================================
-    // STEP 2: EX-FACTORY COST
+    // STEP 2: PACKAGING CHARGES (per box, added to product cost)
+    // ============================================
+    const totalPackagingCharges = parseFloat(packagingCharges) || 0;
+    const totalExtraChargesAmount = parseFloat(extraCharges) || 0;
+    const customChargesTotal = totalPackagingCharges + totalExtraChargesAmount;
+
+    // ============================================
+    // STEP 3: EX-FACTORY COST (Product + Packaging)
     // ============================================
     const basePrice = parseFloat(product.base_price_usd) || 0;
-    const exFactoryUSD = basePrice * quantity;
-    const exFactoryINR = convertToINR(exFactoryUSD, exchangeRate, 0);
+    const exFactoryProductUSD = basePrice * quantity;
+    const exFactoryProductINR = convertToINR(exFactoryProductUSD, exchangeRate, 0);
+    // Add packaging and extra charges to Ex-Factory
+    const exFactoryINR = exFactoryProductINR + customChargesTotal;
+    const exFactoryUSD = convertToUSD(exFactoryINR, exchangeRate);
 
     // ============================================
     // STEP 3: LOCAL FREIGHT (Per Container)
@@ -249,6 +267,7 @@ export function calculateExportPricing({
     // ============================================
     // STEP 8: FOB CALCULATION
     // ============================================
+    // Note: Packaging and extra charges are already included in exFactoryINR
     const fobINR = exFactoryINR
         + localFreightTotal
         + handlingCosts.total
@@ -303,13 +322,24 @@ export function calculateExportPricing({
     const bankCharges = invoiceValue * (bankChargeRate / 100);
 
     // ============================================
-    // STEP 13: PROFIT MARGIN
+    // STEP 13: PROFIT MARGIN (Applied at selected tier)
     // ============================================
-    const costBase = invoiceValue + bankCharges;
-    let profitAmount = 0;
+    const costBaseCIF = invoiceValue + bankCharges;
 
+    // Calculate profit base based on selected tier
+    let profitBase = 0;
+    if (selectedTier === 'exFactory') {
+        profitBase = exFactoryINR;
+    } else if (selectedTier === 'fob') {
+        profitBase = fobINR;
+    } else {
+        // CIF - use full cost base
+        profitBase = costBaseCIF;
+    }
+
+    let profitAmount = 0;
     if (profitType === 'percentage') {
-        profitAmount = costBase * (profitRate / 100);
+        profitAmount = profitBase * (profitRate / 100);
     } else if (profitType === 'per_container') {
         profitAmount = profitRate * containerCount;
     } else if (profitType === 'per_unit') {
@@ -319,10 +349,34 @@ export function calculateExportPricing({
     }
 
     // ============================================
-    // STEP 14: FINAL CIF
+    // STEP 14: FINAL PRICES WITH PROFIT AT SELECTED TIER
     // ============================================
-    const cifINR = costBase + profitAmount;
-    const cifUSD = convertToUSD(cifINR, exchangeRate);
+
+    // Calculate final prices based on selected tier
+    let exFactoryFinalINR = exFactoryINR;
+    let fobFinalINR = fobINR;
+    let cifFinalINR = costBaseCIF;
+
+    if (selectedTier === 'exFactory') {
+        // Profit added to Ex Factory only
+        exFactoryFinalINR = exFactoryINR + profitAmount;
+        fobFinalINR = fobINR; // No profit in FOB/CIF
+        cifFinalINR = costBaseCIF;
+    } else if (selectedTier === 'fob') {
+        // Profit added to FOB
+        exFactoryFinalINR = exFactoryINR;
+        fobFinalINR = fobINR + profitAmount;
+        cifFinalINR = costBaseCIF;
+    } else {
+        // CIF - profit added to full cost (current behavior)
+        exFactoryFinalINR = exFactoryINR;
+        fobFinalINR = fobINR;
+        cifFinalINR = costBaseCIF + profitAmount;
+    }
+
+    const exFactoryFinalUSD = convertToUSD(exFactoryFinalINR, exchangeRate);
+    const fobFinalUSD = convertToUSD(fobFinalINR, exchangeRate);
+    const cifFinalUSD = convertToUSD(cifFinalINR, exchangeRate);
 
     // ============================================
     // RETURN COMPLETE BREAKDOWN
@@ -334,25 +388,39 @@ export function calculateExportPricing({
         qtyPerContainer,
         containerCount,
 
-        // Main prices
-        exFactory: {
-            inr: roundToTwo(exFactoryINR),
-            usd: roundToTwo(exFactoryUSD)
-        },
-        fob: {
-            inr: roundToTwo(fobINR),
-            usd: roundToTwo(fobUSD)
-        },
-        cif: {
-            inr: roundToTwo(cifINR),
-            usd: roundToTwo(cifUSD)
+        // Selected pricing tier info
+        selectedTier,
+        tierLabels: {
+            exFactory: 'Ex Factory',
+            fob: 'FOB (Free on Board)',
+            cif: 'CIF (Cost Insurance Freight)'
         },
 
-        // Per unit prices
+        // Main prices (with profit applied at selected tier)
+        exFactory: {
+            inr: roundToTwo(exFactoryFinalINR),
+            usd: roundToTwo(exFactoryFinalUSD),
+            baseInr: roundToTwo(exFactoryINR),
+            baseUsd: roundToTwo(exFactoryUSD)
+        },
+        fob: {
+            inr: roundToTwo(fobFinalINR),
+            usd: roundToTwo(fobFinalUSD),
+            baseInr: roundToTwo(fobINR),
+            baseUsd: roundToTwo(fobUSD)
+        },
+        cif: {
+            inr: roundToTwo(cifFinalINR),
+            usd: roundToTwo(cifFinalUSD),
+            baseInr: roundToTwo(costBaseCIF),
+            baseUsd: roundToTwo(convertToUSD(costBaseCIF, exchangeRate))
+        },
+
+        // Per unit prices (using final prices with profit)
         perUnit: {
-            exFactory: roundToTwo(exFactoryUSD / quantity),
-            fob: roundToTwo(fobUSD / quantity),
-            cif: roundToTwo(cifUSD / quantity)
+            exFactory: roundToTwo(exFactoryFinalUSD / quantity),
+            fob: roundToTwo(fobFinalUSD / quantity),
+            cif: roundToTwo(cifFinalUSD / quantity)
         },
 
         // Detailed breakdown
@@ -361,8 +429,13 @@ export function calculateExportPricing({
                 label: 'Product Base Price',
                 perUnit: basePrice,
                 quantity,
-                total: roundToTwo(exFactoryINR),
+                total: roundToTwo(exFactoryProductINR),
                 chargeType: 'per_unit'
+            },
+            packagingCharges: {
+                label: 'Packaging & Extra Charges',
+                total: roundToTwo(customChargesTotal),
+                chargeType: 'flat'
             },
             localFreight: {
                 label: 'Local Freight',
