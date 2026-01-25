@@ -1,6 +1,6 @@
 /**
  * Data Access Layer
- * Uses settings.js for all data - no database required
+ * Reads from localStorage if available, otherwise falls back to settings.js defaults
  */
 
 import {
@@ -20,49 +20,75 @@ import {
     SETTINGS,
 } from './settings';
 
+// Local storage keys (same as settings page)
+const STORAGE_KEYS = {
+    products: 'arovave_products',
+    locations: 'arovave_locations',
+    ports: 'arovave_ports',
+    countries: 'arovave_countries',
+    destPorts: 'arovave_dest_ports',
+    containers: 'arovave_containers',
+    certifications: 'arovave_certifications',
+    settings: 'arovave_settings',
+};
+
+// Helper to load from localStorage with fallback
+function loadFromStorage(key, defaults) {
+    if (typeof window === 'undefined') return defaults;
+    try {
+        const stored = localStorage.getItem(STORAGE_KEYS[key]);
+        return stored ? JSON.parse(stored) : defaults;
+    } catch (e) {
+        return defaults;
+    }
+}
+
 // ============================================
 // CONTAINER TYPES
 // ============================================
 export async function getContainerTypes() {
-    return CONTAINER_TYPES.filter(c => c.is_active);
+    const data = loadFromStorage('containers', CONTAINER_TYPES);
+    return data.filter(c => c.is_active);
 }
 
 // ============================================
 // PRODUCTS
 // ============================================
 export async function getProducts() {
-    return PRODUCTS.filter(p => p.active);
+    const data = loadFromStorage('products', PRODUCTS);
+    return data.filter(p => p.active);
 }
 
 // ============================================
 // FACTORY LOCATIONS
 // ============================================
 export async function getLocations() {
-    return LOCATIONS;
+    return loadFromStorage('locations', LOCATIONS);
 }
 
 // ============================================
 // INDIAN PORTS
 // ============================================
 export async function getPorts() {
-    return PORTS;
+    return loadFromStorage('ports', PORTS);
 }
 
 // ============================================
 // COUNTRIES
 // ============================================
 export async function getCountries() {
-    return COUNTRIES;
+    return loadFromStorage('countries', COUNTRIES);
 }
 
 // ============================================
 // DESTINATION PORTS
 // ============================================
 export async function getDestinationPorts(countryId = null) {
+    const data = loadFromStorage('destPorts', DESTINATION_PORTS);
     if (countryId) {
-        return DESTINATION_PORTS.filter(p => p.country_id === parseInt(countryId));
+        return data.filter(p => p.country_id === parseInt(countryId));
     }
-    return DESTINATION_PORTS;
+    return data;
 }
 
 // ============================================
@@ -92,14 +118,14 @@ export async function getCostHeads() {
 // CERTIFICATIONS
 // ============================================
 export async function getCertifications() {
-    return CERTIFICATIONS;
+    return loadFromStorage('certifications', CERTIFICATIONS);
 }
 
 // ============================================
 // SETTINGS
 // ============================================
 export async function getSettings() {
-    return SETTINGS;
+    return loadFromStorage('settings', SETTINGS);
 }
 
 // ============================================

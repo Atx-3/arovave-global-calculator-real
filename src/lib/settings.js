@@ -160,4 +160,8 @@ export const SETTINGS = {
     company_name: 'Arovave Global',
     exchange_rate_usd: '83.50',
     bank_margin: '0.50',
+    // Local freight rate per km (INR)
+    freight_rate_per_km_20ft: '45',
+    freight_rate_per_km_40ft: '65',
+    min_freight_charge: '5000',
 };

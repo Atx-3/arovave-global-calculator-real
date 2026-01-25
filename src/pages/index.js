@@ -22,6 +22,7 @@ import {
     formatNumber
 } from '@/lib/calculator';
 import { downloadQuotationPDF } from '@/lib/pdf';
+import { calculateDistanceFromPincodeToPort, calculateFreightFromDistance } from '@/lib/distance';
 
 export default function Home() {
     // Master Data
@@ -42,7 +43,10 @@ export default function Home() {
     const [boxesPerContainer, setBoxesPerContainer] = useState(''); // Number of boxes that fit in container
     const [boxWeightMain, setBoxWeightMain] = useState(''); // Weight per box in KG
     const [selectedLocation, setSelectedLocation] = useState('');
+    const [factoryPincode, setFactoryPincode] = useState(''); // Pincode for distance calculation
     const [selectedPort, setSelectedPort] = useState('');
+    const [distanceKm, setDistanceKm] = useState(''); // Distance between factory and port in km
+    const [distanceInfo, setDistanceInfo] = useState(null); // Auto-calculated distance info
     const [selectedCountry, setSelectedCountry] = useState('');
     const [selectedDestPort, setSelectedDestPort] = useState('');
     const [selectedCerts, setSelectedCerts] = useState([]);
@@ -685,19 +689,93 @@ export default function Home() {
                             </select>
                         </div>
 
+                        {/* Factory Pincode for Distance */}
+                        <div className="form-group">
+                            <label className="form-label">Factory Pincode (for distance)</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="e.g., 110001"
+                                value={factoryPincode}
+                                onChange={(e) => {
+                                    const pin = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                    setFactoryPincode(pin);
+                                    setDistanceInfo(null);
+                                    // Auto-calculate distance when 6 digits entered and port selected
+                                    if (pin.length >= 3 && selectedPort) {
+                                        const port = ports.find(p => p.id == selectedPort);
+                                        if (port) {
+                                            const result = calculateDistanceFromPincodeToPort(pin, port.code);
+                                            if (!result.error) {
+                                                setDistanceInfo(result);
+                                                setDistanceKm(result.distance.toString());
+                                            }
+                                        }
+                                    }
+                                }}
+                                maxLength={6}
+                            />
+                            <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
+                                Enter 6-digit pincode to auto-calculate distance
+                            </small>
+                        </div>
+
                         {/* Port of Loading */}
                         <div className="form-group">
                             <label className="form-label">Port of Loading (India) *</label>
                             <select
                                 className="form-select"
                                 value={selectedPort}
-                                onChange={(e) => { setSelectedPort(e.target.value); setResult(null); }}
+                                onChange={(e) => {
+                                    setSelectedPort(e.target.value);
+                                    setResult(null);
+                                    // Auto-calculate distance when port changes
+                                    if (factoryPincode.length >= 3 && e.target.value) {
+                                        const port = ports.find(p => p.id == e.target.value);
+                                        if (port) {
+                                            const result = calculateDistanceFromPincodeToPort(factoryPincode, port.code);
+                                            if (!result.error) {
+                                                setDistanceInfo(result);
+                                                setDistanceKm(result.distance.toString());
+                                            }
+                                        }
+                                    }
+                                }}
                             >
                                 <option value="">Select port</option>
                                 {ports.map(port => (
                                     <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
                                 ))}
                             </select>
+                        </div>
+
+                        {/* Distance Display & Input */}
+                        <div className="form-group">
+                            <label className="form-label">Distance (km)</label>
+                            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    placeholder="Enter or auto-calculated"
+                                    value={distanceKm}
+                                    onChange={(e) => setDistanceKm(e.target.value)}
+                                    min="0"
+                                    style={{ flex: 1 }}
+                                />
+                                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>km</span>
+                            </div>
+                            {distanceInfo && (
+                                <div style={{
+                                    marginTop: 'var(--space-2)',
+                                    padding: 'var(--space-2)',
+                                    background: 'var(--bg-secondary)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontSize: 'var(--text-xs)',
+                                    color: 'var(--text-secondary)'
+                                }}>
+                                    📍 {distanceInfo.from} → {distanceInfo.to}: <strong>{distanceInfo.distance} km</strong> (approx road distance)
+                                </div>
+                            )}
                         </div>
 
                         {/* Destination Country */}
