@@ -519,6 +519,7 @@ export default function Home() {
                                 <div className="logo-tagline">FCL Export Rate Calculator</div>
                             </div>
                         </div>
+                        <a href="/settings" className="btn btn-secondary btn-sm">Settings</a>
                     </div>
                 </header>
 
@@ -922,23 +923,32 @@ export default function Home() {
                                     </div>
                                 </div>
 
-                                {/* Container Info */}
+                                {/* Shipment Summary */}
                                 <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 'var(--space-4)',
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(4, 1fr)',
+                                    gap: 'var(--space-3)',
                                     padding: 'var(--space-4)',
-                                    background: 'var(--bg-glass)',
-                                    borderRadius: 'var(--radius-lg)',
-                                    marginBottom: 'var(--space-6)'
+                                    background: 'var(--bg-secondary)',
+                                    borderRadius: 'var(--radius-md)',
+                                    marginBottom: 'var(--space-5)',
+                                    border: '1px solid var(--gray-200)'
                                 }}>
-                                    <div>
-                                        <div style={{ fontWeight: 'var(--font-semibold)' }}>
-                                            {result.containerCount} × {result.containerCode} Container{result.containerCount > 1 ? 's' : ''}
-                                        </div>
-                                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-                                            {result.factoryLocation} → {result.loadingPort} → {result.destinationPort}, {result.country}
-                                        </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Container</div>
+                                        <div style={{ fontWeight: 'var(--font-bold)', fontSize: 'var(--text-lg)' }}>{result.containerCount} × {result.containerCode}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Origin</div>
+                                        <div style={{ fontWeight: 'var(--font-medium)' }}>{result.loadingPort}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Destination</div>
+                                        <div style={{ fontWeight: 'var(--font-medium)' }}>{result.destinationPort}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quantity</div>
+                                        <div style={{ fontWeight: 'var(--font-bold)' }}>{formatNumber(result.quantity)} {result.unit}</div>
                                     </div>
                                 </div>
 
@@ -1013,15 +1023,7 @@ export default function Home() {
                                     )}
                                 </div>
 
-                                {/* Profit indicator */}
-                                <div style={{
-                                    textAlign: 'center',
-                                    fontSize: 'var(--text-xs)',
-                                    color: 'var(--text-muted)',
-                                    marginTop: 'var(--space-2)'
-                                }}>
-                                    {selectedTier === 'exFactory' ? 'Ex-Factory' : selectedTier === 'fob' ? 'FOB' : 'CIF'} includes {result.pricing.breakdown.profit.rate}% profit
-                                </div>
+
 
                                 {/* Cost Breakdown */}
                                 <h4 style={{ marginTop: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
@@ -1151,12 +1153,7 @@ export default function Home() {
                                             </>
                                         )}
 
-                                        {/* Profit */}
-                                        <tr>
-                                            <td>Company Margin ({result.pricing.breakdown.profit.rate}%)</td>
-                                            <td><span className="badge badge-success">Profit</span></td>
-                                            <td>{formatINR(result.pricing.breakdown.profit.total)}</td>
-                                        </tr>
+
 
                                         {/* Final Total for Selected Tier */}
                                         <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>

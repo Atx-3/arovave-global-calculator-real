@@ -494,11 +494,11 @@ export function calculateExportPricing({
                 total: roundToTwo(bankCharges),
                 chargeType: 'percentage'
             },
-            profit: {
-                label: 'Company Margin',
-                type: profitType,
+            // Profit is merged into the selected tier rate - not shown separately
+            profitIncluded: {
+                tier: selectedTier,
                 rate: profitRate,
-                total: roundToTwo(profitAmount)
+                amount: roundToTwo(profitAmount)
             }
         },
 
