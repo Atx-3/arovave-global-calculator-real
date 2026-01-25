@@ -957,14 +957,15 @@ export default function Home() {
                                 }}>
                                     {/* Ex-Factory - Always show */}
                                     <div style={{
-                                        background: selectedTier === 'exFactory' ? 'linear-gradient(135deg, var(--accent-500), var(--accent-600))' : 'var(--bg-glass)',
-                                        borderRadius: 'var(--radius-lg)',
+                                        background: selectedTier === 'exFactory' ? 'var(--black)' : 'var(--bg-secondary)',
+                                        borderRadius: 'var(--radius-md)',
                                         padding: 'var(--space-4)',
                                         textAlign: 'center',
-                                        color: selectedTier === 'exFactory' ? 'white' : 'inherit'
+                                        color: selectedTier === 'exFactory' ? 'white' : 'inherit',
+                                        border: '1px solid var(--gray-200)'
                                     }}>
-                                        <div style={{ fontSize: 'var(--text-xs)', opacity: 0.8, marginBottom: 'var(--space-1)' }}>
-                                            EX-FACTORY {selectedTier === 'exFactory' && '✓'}
+                                        <div style={{ fontSize: 'var(--text-xs)', opacity: 0.8, marginBottom: 'var(--space-1)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            EX-FACTORY
                                         </div>
                                         <div style={{ fontSize: selectedTier === 'exFactory' ? 'var(--text-2xl)' : 'var(--text-lg)', fontWeight: 'var(--font-bold)' }}>
                                             {showCurrency === 'INR' ? formatINR(result.pricing.exFactory.inr) : formatUSD(result.pricing.exFactory.usd)}
@@ -977,14 +978,15 @@ export default function Home() {
                                     {/* FOB - Show for FOB and CIF */}
                                     {(selectedTier === 'fob' || selectedTier === 'cif') && (
                                         <div style={{
-                                            background: selectedTier === 'fob' ? 'linear-gradient(135deg, var(--accent-500), var(--accent-600))' : 'var(--bg-glass)',
-                                            borderRadius: 'var(--radius-lg)',
+                                            background: selectedTier === 'fob' ? 'var(--black)' : 'var(--bg-secondary)',
+                                            borderRadius: 'var(--radius-md)',
                                             padding: 'var(--space-4)',
                                             textAlign: 'center',
-                                            color: selectedTier === 'fob' ? 'white' : 'inherit'
+                                            color: selectedTier === 'fob' ? 'white' : 'inherit',
+                                            border: '1px solid var(--gray-200)'
                                         }}>
-                                            <div style={{ fontSize: 'var(--text-xs)', opacity: 0.8, marginBottom: 'var(--space-1)' }}>
-                                                FOB {selectedTier === 'fob' && '✓'}
+                                            <div style={{ fontSize: 'var(--text-xs)', opacity: 0.8, marginBottom: 'var(--space-1)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                FOB
                                             </div>
                                             <div style={{ fontSize: selectedTier === 'fob' ? 'var(--text-2xl)' : 'var(--text-lg)', fontWeight: 'var(--font-bold)' }}>
                                                 {showCurrency === 'INR' ? formatINR(result.pricing.fob.inr) : formatUSD(result.pricing.fob.usd)}
@@ -998,14 +1000,15 @@ export default function Home() {
                                     {/* CIF - Show only for CIF */}
                                     {selectedTier === 'cif' && (
                                         <div style={{
-                                            background: 'linear-gradient(135deg, var(--accent-500), var(--accent-600))',
-                                            borderRadius: 'var(--radius-lg)',
+                                            background: 'var(--black)',
+                                            borderRadius: 'var(--radius-md)',
                                             padding: 'var(--space-4)',
                                             textAlign: 'center',
-                                            color: 'white'
+                                            color: 'white',
+                                            border: '1px solid var(--black)'
                                         }}>
-                                            <div style={{ fontSize: 'var(--text-xs)', opacity: 0.8, marginBottom: 'var(--space-1)' }}>
-                                                CIF ✓
+                                            <div style={{ fontSize: 'var(--text-xs)', opacity: 0.8, marginBottom: 'var(--space-1)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                CIF
                                             </div>
                                             <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-bold)' }}>
                                                 {showCurrency === 'INR' ? formatINR(result.pricing.cif.inr) : formatUSD(result.pricing.cif.usd)}
@@ -1163,9 +1166,9 @@ export default function Home() {
                                         </tr>
 
                                         {/* Final Total for Selected Tier */}
-                                        <tr style={{ background: 'linear-gradient(135deg, rgba(0, 168, 168, 0.2), rgba(0, 168, 168, 0.1))', fontWeight: 'var(--font-bold)' }}>
+                                        <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>
                                             <td colSpan="2">{selectedTier === 'exFactory' ? 'Ex-Factory' : selectedTier === 'fob' ? 'FOB' : 'CIF'} Total</td>
-                                            <td style={{ color: 'var(--accent-400)' }}>{formatINR(result.pricing[selectedTier].inr)}</td>
+                                            <td>{formatINR(result.pricing[selectedTier].inr)}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -1224,11 +1227,11 @@ export default function Home() {
 
                                 {/* Action Buttons */}
                                 <div className="action-buttons">
-                                    <button className="btn btn-accent" onClick={handleDownloadPDF}>
-                                        📄 Download PDF
+                                    <button className="btn btn-primary" onClick={handleDownloadPDF}>
+                                        Download PDF
                                     </button>
                                     <button className="btn btn-secondary" onClick={handleWhatsAppShare}>
-                                        📱 Share WhatsApp
+                                        Share via WhatsApp
                                     </button>
                                 </div>
                             </div>
@@ -1261,7 +1264,7 @@ export default function Home() {
                         padding: 'var(--space-6)', maxWidth: '450px', width: '100%'
                     }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-                            <h3 style={{ margin: 0 }}>📄 Generate Quotation</h3>
+                            <h3 style={{ margin: 0 }}>Generate Quotation</h3>
                             <button onClick={() => setShowClientModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>×</button>
                         </div>
 
@@ -1324,7 +1327,7 @@ export default function Home() {
                                 onClick={handleGeneratePDF}
                                 style={{ flex: 1 }}
                             >
-                                📄 Download PDF
+                                Download PDF
                             </button>
                         </div>
                     </div>
@@ -1372,13 +1375,13 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
                 maxHeight: '90vh', overflowY: 'auto'
             }} onClick={e => e.stopPropagation()}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-                    <h3 style={{ margin: 0 }}>📦 Calculate Box Capacity</h3>
+                    <h3 style={{ margin: 0 }}>Calculate Box Capacity</h3>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>×</button>
                 </div>
 
                 {/* Container Info */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-2)', padding: 'var(--space-3)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-4)', textAlign: 'center', fontSize: 'var(--text-xs)' }}>
-                    <div><div style={{ color: 'var(--text-muted)' }}>Container</div><div style={{ fontWeight: 'bold', color: 'var(--primary-400)' }}>{containerCode}</div></div>
+                    <div><div style={{ color: 'var(--text-muted)' }}>Container</div><div style={{ fontWeight: 'bold' }}>{containerCode}</div></div>
                     <div><div style={{ color: 'var(--text-muted)' }}>L</div><div>{(container.lengthCm / 100).toFixed(1)}m</div></div>
                     <div><div style={{ color: 'var(--text-muted)' }}>W</div><div>{(container.widthCm / 100).toFixed(2)}m</div></div>
                     <div><div style={{ color: 'var(--text-muted)' }}>H</div><div>{(container.heightCm / 100).toFixed(2)}m</div></div>
@@ -1388,7 +1391,7 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
 
                 {/* Box Dimensions */}
                 <div style={{ marginBottom: 'var(--space-3)' }}>
-                    <label style={{ fontSize: 'var(--text-sm)', fontWeight: '600', marginBottom: 'var(--space-2)', display: 'block' }}>📦 Box Dimensions (cm)</label>
+                    <label style={{ fontSize: 'var(--text-sm)', fontWeight: '600', marginBottom: 'var(--space-2)', display: 'block' }}>Box Dimensions (cm)</label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-2)' }}>
                         <input type="number" className="form-input" placeholder="Length" value={boxLength} onChange={e => setBoxLength(e.target.value)} min="1" style={{ fontSize: 'var(--text-sm)' }} />
                         <input type="number" className="form-input" placeholder="Width" value={boxWidth} onChange={e => setBoxWidth(e.target.value)} min="1" style={{ fontSize: 'var(--text-sm)' }} />
@@ -1398,18 +1401,18 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
 
                 {/* Weight */}
                 <div style={{ marginBottom: 'var(--space-4)' }}>
-                    <label style={{ fontSize: 'var(--text-sm)', fontWeight: '600', marginBottom: 'var(--space-2)', display: 'block' }}>⚖️ Weight per Box (kg)</label>
+                    <label style={{ fontSize: 'var(--text-sm)', fontWeight: '600', marginBottom: 'var(--space-2)', display: 'block' }}>Weight per Box (kg)</label>
                     <input type="number" className="form-input" placeholder="e.g., 5" value={boxWeight} onChange={e => setBoxWeight(e.target.value)} min="0.1" step="0.1" style={{ fontSize: 'var(--text-sm)' }} />
                 </div>
 
-                <button className="btn btn-primary" onClick={onCalc} style={{ width: '100%', marginBottom: 'var(--space-4)' }}>🧮 Calculate</button>
+                <button className="btn btn-primary" onClick={onCalc} style={{ width: '100%', marginBottom: 'var(--space-4)' }}>Calculate</button>
 
                 {/* Results */}
                 {calcResult && (
-                    <div style={{ background: 'linear-gradient(135deg, rgba(0, 168, 168, 0.15), rgba(0, 168, 168, 0.05))', border: '2px solid var(--primary-500)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
+                    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--gray-300)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4)' }}>
                         {/* Boxes per Container */}
                         <div style={{ textAlign: 'center', marginBottom: 'var(--space-3)' }}>
-                            <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 'bold', color: 'var(--primary-400)' }}>{calcResult.boxesPerContainer}</div>
+                            <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 'bold' }}>{calcResult.boxesPerContainer}</div>
                             <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>boxes per {containerCode}</div>
                         </div>
 
@@ -1417,7 +1420,7 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', fontSize: 'var(--text-xs)', marginBottom: 'var(--space-3)' }}>
                             <div style={{ padding: 'var(--space-2)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
                                 <div style={{ color: 'var(--text-muted)' }}>Weight/Container</div>
-                                <div style={{ fontWeight: '600', color: 'var(--accent-400)' }}>{calcResult.weightPerContainer.toLocaleString()} kg</div>
+                                <div style={{ fontWeight: '600' }}>{calcResult.weightPerContainer.toLocaleString()} kg</div>
                             </div>
                             <div style={{ padding: 'var(--space-2)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
                                 <div style={{ color: 'var(--text-muted)' }}>Volume Used</div>
@@ -1432,20 +1435,20 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
                                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                                         {calcResult.totalWeightKg.toLocaleString()} kg = {calcResult.totalBoxes.toLocaleString()} boxes
                                     </div>
-                                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'bold', color: 'var(--accent-400)' }}>
+                                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'bold' }}>
                                         {calcResult.totalContainers} Container{calcResult.totalContainers > 1 ? 's' : ''} Required
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'center', fontSize: 'var(--text-sm)' }}>
                                     {calcResult.fullContainers > 0 && (
-                                        <span style={{ color: 'var(--success)' }}>
-                                            ✅ {calcResult.fullContainers} Full
+                                        <span>
+                                            {calcResult.fullContainers} Full
                                         </span>
                                     )}
                                     {calcResult.fullContainers > 0 && calcResult.remainingBoxes > 0 && ' + '}
                                     {calcResult.remainingBoxes > 0 && (
-                                        <span style={{ color: 'var(--warning)' }}>
-                                            📦 1 at {calcResult.lastContainerPercent}% ({calcResult.remainingBoxes} boxes)
+                                        <span style={{ color: 'var(--text-muted)' }}>
+                                            1 at {calcResult.lastContainerPercent}% ({calcResult.remainingBoxes} boxes)
                                         </span>
                                     )}
                                 </div>
@@ -1454,14 +1457,14 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
 
                         {!calcResult.totalWeightKg && (
                             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 'var(--space-3)', fontStyle: 'italic' }}>
-                                💡 Enter "Total Weight to Ship" in main form to see container breakdown
+                                Enter "Total Weight to Ship" in main form to see container breakdown
                             </div>
                         )}
 
-                        <div style={{ fontSize: 'var(--text-xs)', color: calcResult.limitedBy === 'weight' ? 'var(--warning)' : 'var(--text-muted)', textAlign: 'center', marginBottom: 'var(--space-3)' }}>
-                            ⚠️ Limited by {calcResult.limitedBy} (max {calcResult.limitedBy === 'weight' ? calcResult.maxByWeight : calcResult.maxByVolume} boxes)
+                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 'var(--space-3)' }}>
+                            Note: Limited by {calcResult.limitedBy} (max {calcResult.limitedBy === 'weight' ? calcResult.maxByWeight : calcResult.maxByVolume} boxes)
                         </div>
-                        <button className="btn btn-accent" onClick={onApply} style={{ width: '100%' }}>✅ Use {calcResult.boxesPerContainer} boxes × {calcResult.boxWeight} kg/box</button>
+                        <button className="btn btn-primary" onClick={onApply} style={{ width: '100%' }}>Use {calcResult.boxesPerContainer} boxes x {calcResult.boxWeight} kg/box</button>
                     </div>
                 )}
             </div>
