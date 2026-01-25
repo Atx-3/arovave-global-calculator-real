@@ -627,7 +627,7 @@ export default function Home() {
                         {/* Boxes per Container */}
                         <div className="form-group">
                             <label className="form-label">
-                                📦 Boxes per Container *
+                                Boxes per Container *
                             </label>
                             <input
                                 type="number"
@@ -647,7 +647,7 @@ export default function Home() {
                                     className="btn btn-secondary btn-sm"
                                     style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-1) var(--space-2)' }}
                                 >
-                                    📐 Calculate
+                                    Calculate
                                 </button>
                             </div>
                         </div>
@@ -660,14 +660,13 @@ export default function Home() {
                                 justifyContent: 'center',
                                 gap: 'var(--space-4)',
                                 padding: 'var(--space-4)',
-                                background: 'linear-gradient(135deg, rgba(0, 168, 168, 0.2), rgba(0, 168, 168, 0.1))',
-                                border: '2px solid var(--primary-500)',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--gray-300)',
                                 borderRadius: 'var(--radius-lg)',
                                 marginBottom: 'var(--space-5)'
                             }}>
-                                <span style={{ fontSize: 'var(--text-3xl)' }}>📦</span>
                                 <div>
-                                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)', color: 'var(--primary-400)' }}>
+                                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)' }}>
                                         {containerCount} Container{containerCount > 1 ? 's' : ''} Required
                                     </div>
                                     <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
@@ -740,7 +739,7 @@ export default function Home() {
 
                         {/* Pricing Tier Selection */}
                         <div className="form-group">
-                            <label className="form-label">💰 Price Quote Type *</label>
+                            <label className="form-label">Price Quote Type *</label>
                             <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                                 <button
                                     type="button"
@@ -768,9 +767,9 @@ export default function Home() {
                                 </button>
                             </div>
                             <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)', display: 'block' }}>
-                                {selectedTier === 'exFactory' && '🏭 Factory gate price with profit included'}
-                                {selectedTier === 'fob' && '🚢 Free on Board (includes local freight, port charges) with profit'}
-                                {selectedTier === 'cif' && '🌍 Cost Insurance Freight (full export price) with profit'}
+                                {selectedTier === 'exFactory' && 'Factory gate price with profit included'}
+                                {selectedTier === 'fob' && 'Free on Board (includes local freight, port charges) with profit'}
+                                {selectedTier === 'cif' && 'Cost Insurance Freight (full export price) with profit'}
                             </small>
                         </div>
 
@@ -802,7 +801,7 @@ export default function Home() {
                             marginBottom: 'var(--space-4)'
                         }}>
                             <label className="form-label" style={{ marginBottom: 'var(--space-3)' }}>
-                                💰 Custom Charges (Optional)
+                                Custom Charges (Optional)
                             </label>
 
                             {/* Profit Margin and Packaging in a row */}
@@ -890,7 +889,7 @@ export default function Home() {
                                 className="btn btn-secondary btn-sm"
                                 style={{ width: '100%', fontSize: 'var(--text-sm)' }}
                             >
-                                ➕ Add Extra Charge
+                                + Add Extra Charge
                             </button>
                         </div>
 
@@ -940,7 +939,6 @@ export default function Home() {
                                     borderRadius: 'var(--radius-lg)',
                                     marginBottom: 'var(--space-6)'
                                 }}>
-                                    <span style={{ fontSize: 'var(--text-2xl)' }}>🚢</span>
                                     <div>
                                         <div style={{ fontWeight: 'var(--font-semibold)' }}>
                                             {result.containerCount} × {result.containerCode} Container{result.containerCount > 1 ? 's' : ''}
