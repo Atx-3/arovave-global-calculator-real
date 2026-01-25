@@ -73,6 +73,12 @@ export default function Home() {
     const [calcResult, setCalcResult] = useState(null);
     const [calcError, setCalcError] = useState('');
 
+    // Client Details Modal State (for PDF download)
+    const [showClientModal, setShowClientModal] = useState(false);
+    const [clientName, setClientName] = useState('');
+    const [clientPhone, setClientPhone] = useState('');
+    const [clientCompany, setClientCompany] = useState('');
+
     // Container specifications (internal dimensions in cm)
     const CONTAINER_SPECS = {
         '20FT': { lengthCm: 590, widthCm: 235, heightCm: 239, maxWeightKg: 28000 },
@@ -333,10 +339,27 @@ export default function Home() {
         setCalculating(false);
     };
 
-    // Download PDF
+    // Open client details modal for PDF download
     const handleDownloadPDF = () => {
         if (result) {
-            downloadQuotationPDF(result);
+            setShowClientModal(true);
+        }
+    };
+
+    // Actually generate and download PDF with client info
+    const handleGeneratePDF = async () => {
+        if (result) {
+            const clientInfo = {
+                name: clientName.trim() || 'Valued Customer',
+                phone: clientPhone.trim(),
+                company: clientCompany.trim()
+            };
+            await downloadQuotationPDF(result, clientInfo);
+            setShowClientModal(false);
+            // Reset form
+            setClientName('');
+            setClientPhone('');
+            setClientCompany('');
         }
     };
 
@@ -1225,6 +1248,89 @@ export default function Home() {
                     <p>© {new Date().getFullYear()} Arovave Global. All rights reserved.</p>
                 </footer >
             </div >
+
+            {/* Client Details Modal for PDF */}
+            {showClientModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.8)', zIndex: 1000,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 'var(--space-4)'
+                }} onClick={() => setShowClientModal(false)}>
+                    <div style={{
+                        background: 'var(--bg-secondary)', borderRadius: 'var(--radius-xl)',
+                        padding: 'var(--space-6)', maxWidth: '450px', width: '100%'
+                    }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+                            <h3 style={{ margin: 0 }}>📄 Generate Quotation</h3>
+                            <button onClick={() => setShowClientModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>×</button>
+                        </div>
+
+                        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)' }}>
+                            Enter client details to personalize the quotation PDF
+                        </p>
+
+                        <div style={{ marginBottom: 'var(--space-3)' }}>
+                            <label style={{ display: 'block', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-1)', color: 'var(--text-secondary)' }}>
+                                Client Name *
+                            </label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="e.g., John Smith"
+                                value={clientName}
+                                onChange={(e) => setClientName(e.target.value)}
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+
+                        <div style={{ marginBottom: 'var(--space-3)' }}>
+                            <label style={{ display: 'block', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-1)', color: 'var(--text-secondary)' }}>
+                                Phone Number
+                            </label>
+                            <input
+                                type="tel"
+                                className="form-input"
+                                placeholder="e.g., +1 234 567 8900"
+                                value={clientPhone}
+                                onChange={(e) => setClientPhone(e.target.value)}
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+
+                        <div style={{ marginBottom: 'var(--space-4)' }}>
+                            <label style={{ display: 'block', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-1)', color: 'var(--text-secondary)' }}>
+                                Company Name
+                            </label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="e.g., ABC Trading Co."
+                                value={clientCompany}
+                                onChange={(e) => setClientCompany(e.target.value)}
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => setShowClientModal(false)}
+                                style={{ flex: 1 }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn-accent"
+                                onClick={handleGeneratePDF}
+                                style={{ flex: 1 }}
+                            >
+                                📄 Download PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Container Calculator Modal */}
             < ContainerCalcModal
