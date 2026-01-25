@@ -1,0 +1,317 @@
+{
+  "products": [
+    {
+      "id": 2,
+      "name": "Organic Turmeric Powder",
+      "hsn_code": "09103010",
+      "unit": "KG",
+      "base_price_usd": 3,
+      "qty_per_20ft": 16000,
+      "qty_per_40ft": 24000,
+      "active": true
+    },
+    {
+      "id": 3,
+      "name": "Cumin Seeds",
+      "hsn_code": "09093110",
+      "unit": "KG",
+      "base_price_usd": 4.5,
+      "qty_per_20ft": 15000,
+      "qty_per_40ft": 22000,
+      "active": true
+    },
+    {
+      "id": 4,
+      "name": "Black Pepper Whole",
+      "hsn_code": "09041110",
+      "unit": "KG",
+      "base_price_usd": 8,
+      "qty_per_20ft": 14000,
+      "qty_per_40ft": 21000,
+      "active": true
+    },
+    {
+      "id": 5,
+      "name": "Cardamom Green",
+      "hsn_code": "09083110",
+      "unit": "KG",
+      "base_price_usd": 25,
+      "qty_per_20ft": 12000,
+      "qty_per_40ft": 18000,
+      "active": true
+    },
+    {
+      "id": 6,
+      "name": "Indian Tea (CTC)",
+      "hsn_code": "09024010",
+      "unit": "KG",
+      "base_price_usd": 2.8,
+      "qty_per_20ft": 16000,
+      "qty_per_40ft": 24000,
+      "active": true
+    },
+    {
+      "id": 7,
+      "name": "Mango Pulp",
+      "hsn_code": "08045020",
+      "unit": "KG",
+      "base_price_usd": 2.5,
+      "qty_per_20ft": 17000,
+      "qty_per_40ft": 25000,
+      "active": true
+    },
+    {
+      "id": 8,
+      "name": "Peanuts (Bold)",
+      "hsn_code": "12024190",
+      "unit": "KG",
+      "base_price_usd": 1.2,
+      "qty_per_20ft": 18000,
+      "qty_per_40ft": 26000,
+      "active": true
+    }
+  ],
+  "locations": [
+    {
+      "id": 1,
+      "name": "Delhi NCR",
+      "pincode": "110001",
+      "state": "Delhi"
+    },
+    {
+      "id": 2,
+      "name": "Mumbai",
+      "pincode": "400001",
+      "state": "Maharashtra"
+    },
+    {
+      "id": 3,
+      "name": "Chennai",
+      "pincode": "600001",
+      "state": "Tamil Nadu"
+    },
+    {
+      "id": 4,
+      "name": "Bangalore",
+      "pincode": "560001",
+      "state": "Karnataka"
+    },
+    {
+      "id": 5,
+      "name": "Ahmedabad",
+      "pincode": "380001",
+      "state": "Gujarat"
+    }
+  ],
+  "ports": [
+    {
+      "id": 1,
+      "name": "Jawaharlal Nehru Port (JNPT)",
+      "code": "INNSA",
+      "city": "Mumbai",
+      "handling_per_container": 8000,
+      "cha_charges": 7500,
+      "customs_per_shipment": 5000
+    },
+    {
+      "id": 2,
+      "name": "Mundra Port",
+      "code": "INMUN",
+      "city": "Mundra",
+      "handling_per_container": 7000,
+      "cha_charges": 6000,
+      "customs_per_shipment": 4500
+    },
+    {
+      "id": 3,
+      "name": "Chennai Port",
+      "code": "INMAA",
+      "city": "Chennai",
+      "handling_per_container": 7500,
+      "cha_charges": 6500,
+      "customs_per_shipment": 4800
+    }
+  ],
+  "countries": [
+    {
+      "id": 1,
+      "name": "United Arab Emirates",
+      "code": "AE",
+      "ecgc_risk_category": "A",
+      "ecgc_rate_percent": 0.35
+    },
+    {
+      "id": 2,
+      "name": "Saudi Arabia",
+      "code": "SA",
+      "ecgc_risk_category": "A",
+      "ecgc_rate_percent": 0.4
+    },
+    {
+      "id": 3,
+      "name": "United States",
+      "code": "US",
+      "ecgc_risk_category": "A",
+      "ecgc_rate_percent": 0.3
+    },
+    {
+      "id": 4,
+      "name": "United Kingdom",
+      "code": "GB",
+      "ecgc_risk_category": "A",
+      "ecgc_rate_percent": 0.3
+    },
+    {
+      "id": 5,
+      "name": "Germany",
+      "code": "DE",
+      "ecgc_risk_category": "A",
+      "ecgc_rate_percent": 0.3
+    },
+    {
+      "id": 6,
+      "name": "Singapore",
+      "code": "SG",
+      "ecgc_risk_category": "A",
+      "ecgc_rate_percent": 0.25
+    },
+    {
+      "id": 7,
+      "name": "Australia",
+      "code": "AU",
+      "ecgc_risk_category": "A",
+      "ecgc_rate_percent": 0.3
+    }
+  ],
+  "destPorts": [
+    {
+      "id": 1,
+      "country_id": 1,
+      "name": "Jebel Ali Port",
+      "code": "AEJEA"
+    },
+    {
+      "id": 2,
+      "country_id": 1,
+      "name": "Abu Dhabi Port",
+      "code": "AEAUH"
+    },
+    {
+      "id": 3,
+      "country_id": 2,
+      "name": "Jeddah Port",
+      "code": "SAJED"
+    },
+    {
+      "id": 4,
+      "country_id": 3,
+      "name": "Los Angeles Port",
+      "code": "USLAX"
+    },
+    {
+      "id": 5,
+      "country_id": 3,
+      "name": "New York Port",
+      "code": "USNYC"
+    },
+    {
+      "id": 6,
+      "country_id": 4,
+      "name": "Felixstowe Port",
+      "code": "GBFXT"
+    },
+    {
+      "id": 7,
+      "country_id": 5,
+      "name": "Hamburg Port",
+      "code": "DEHAM"
+    },
+    {
+      "id": 8,
+      "country_id": 6,
+      "name": "Singapore Port",
+      "code": "SGSIN"
+    },
+    {
+      "id": 9,
+      "country_id": 7,
+      "name": "Melbourne Port",
+      "code": "AUMEL"
+    }
+  ],
+  "containers": [
+    {
+      "id": 1,
+      "name": "20 Feet Container",
+      "code": "20FT",
+      "max_weight_kg": 18000,
+      "max_volume_cbm": 33,
+      "is_active": true
+    },
+    {
+      "id": 2,
+      "name": "40 Feet Container",
+      "code": "40FT",
+      "max_weight_kg": 26000,
+      "max_volume_cbm": 67,
+      "is_active": true
+    }
+  ],
+  "certifications": [
+    {
+      "id": 1,
+      "name": "FSSAI License",
+      "cost_flat": 2000,
+      "charge_type": "per_shipment",
+      "is_mandatory": false
+    },
+    {
+      "id": 2,
+      "name": "APEDA Registration",
+      "cost_flat": 1500,
+      "charge_type": "per_shipment",
+      "is_mandatory": false
+    },
+    {
+      "id": 3,
+      "name": "Phytosanitary Certificate",
+      "cost_flat": 1200,
+      "charge_type": "per_shipment",
+      "is_mandatory": false
+    },
+    {
+      "id": 4,
+      "name": "Certificate of Origin",
+      "cost_flat": 800,
+      "charge_type": "per_shipment",
+      "is_mandatory": false
+    },
+    {
+      "id": 5,
+      "name": "Halal Certification",
+      "cost_flat": 3000,
+      "charge_type": "per_shipment",
+      "is_mandatory": false
+    },
+    {
+      "id": 6,
+      "name": "Organic Certification",
+      "cost_flat": 5000,
+      "charge_type": "per_shipment",
+      "is_mandatory": false
+    }
+  ],
+  "settings": {
+    "insurance_rate": "0.50",
+    "min_insurance": "5000",
+    "bank_charge_rate": "0.25",
+    "profit_rate": "5.0",
+    "profit_type": "percentage",
+    "company_name": "Arovave Global",
+    "exchange_rate_usd": "83.50",
+    "bank_margin": "0.50",
+    "freight_rate_per_km_20ft": "45",
+    "freight_rate_per_km_40ft": "65",
+    "min_freight_charge": "5000"
+  }
+}

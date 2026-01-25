@@ -1,6 +1,6 @@
 /**
  * Data Access Layer
- * Reads from localStorage if available, otherwise falls back to settings.js defaults
+ * Reads from JSON file via API for server-side, defaults for client-side
  */
 
 import {
@@ -20,34 +20,40 @@ import {
     SETTINGS,
 } from './settings';
 
-// Local storage keys (same as settings page)
-const STORAGE_KEYS = {
-    products: 'arovave_products',
-    locations: 'arovave_locations',
-    ports: 'arovave_ports',
-    countries: 'arovave_countries',
-    destPorts: 'arovave_dest_ports',
-    containers: 'arovave_containers',
-    certifications: 'arovave_certifications',
-    settings: 'arovave_settings',
-};
+// Cache for settings data
+let settingsCache = null;
 
-// Helper to load from localStorage with fallback
-function loadFromStorage(key, defaults) {
-    if (typeof window === 'undefined') return defaults;
-    try {
-        const stored = localStorage.getItem(STORAGE_KEYS[key]);
-        return stored ? JSON.parse(stored) : defaults;
-    } catch (e) {
-        return defaults;
+// Fetch settings from API (only works client-side)
+async function fetchSettings() {
+    if (typeof window === 'undefined') {
+        // Server-side: use defaults
+        return null;
     }
+
+    if (settingsCache) {
+        return settingsCache;
+    }
+
+    try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+            settingsCache = await res.json();
+            // Cache expires after 30 seconds
+            setTimeout(() => { settingsCache = null; }, 30000);
+            return settingsCache;
+        }
+    } catch (error) {
+        console.error('Error fetching settings:', error);
+    }
+    return null;
 }
 
 // ============================================
 // CONTAINER TYPES
 // ============================================
 export async function getContainerTypes() {
-    const data = loadFromStorage('containers', CONTAINER_TYPES);
+    const settings = await fetchSettings();
+    const data = settings?.containers || CONTAINER_TYPES;
     return data.filter(c => c.is_active);
 }
 
@@ -55,7 +61,8 @@ export async function getContainerTypes() {
 // PRODUCTS
 // ============================================
 export async function getProducts() {
-    const data = loadFromStorage('products', PRODUCTS);
+    const settings = await fetchSettings();
+    const data = settings?.products || PRODUCTS;
     return data.filter(p => p.active);
 }
 
@@ -63,28 +70,32 @@ export async function getProducts() {
 // FACTORY LOCATIONS
 // ============================================
 export async function getLocations() {
-    return loadFromStorage('locations', LOCATIONS);
+    const settings = await fetchSettings();
+    return settings?.locations || LOCATIONS;
 }
 
 // ============================================
 // INDIAN PORTS
 // ============================================
 export async function getPorts() {
-    return loadFromStorage('ports', PORTS);
+    const settings = await fetchSettings();
+    return settings?.ports || PORTS;
 }
 
 // ============================================
 // COUNTRIES
 // ============================================
 export async function getCountries() {
-    return loadFromStorage('countries', COUNTRIES);
+    const settings = await fetchSettings();
+    return settings?.countries || COUNTRIES;
 }
 
 // ============================================
 // DESTINATION PORTS
 // ============================================
 export async function getDestinationPorts(countryId = null) {
-    const data = loadFromStorage('destPorts', DESTINATION_PORTS);
+    const settings = await fetchSettings();
+    const data = settings?.destPorts || DESTINATION_PORTS;
     if (countryId) {
         return data.filter(p => p.country_id === parseInt(countryId));
     }
@@ -118,14 +129,16 @@ export async function getCostHeads() {
 // CERTIFICATIONS
 // ============================================
 export async function getCertifications() {
-    return loadFromStorage('certifications', CERTIFICATIONS);
+    const settings = await fetchSettings();
+    return settings?.certifications || CERTIFICATIONS;
 }
 
 // ============================================
 // SETTINGS
 // ============================================
 export async function getSettings() {
-    return loadFromStorage('settings', SETTINGS);
+    const settings = await fetchSettings();
+    return settings?.settings || SETTINGS;
 }
 
 // ============================================
@@ -133,4 +146,9 @@ export async function getSettings() {
 // ============================================
 export async function getCurrencySettings(code = 'USD') {
     return CURRENCY_SETTINGS[code] || CURRENCY_SETTINGS.USD;
+}
+
+// Clear cache (call after saving settings)
+export function clearSettingsCache() {
+    settingsCache = null;
 }

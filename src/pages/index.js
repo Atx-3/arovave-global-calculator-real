@@ -487,6 +487,31 @@ export default function Home() {
         }
     };
 
+    // Clear form - reset all fields
+    const clearForm = () => {
+        setSelectedProduct(null);
+        setQuantity('');
+        setBoxesPerContainer('');
+        setBoxWeightMain('');
+        setFactoryPincode('');
+        setDistanceKm('');
+        setDistanceInfo(null);
+        setSelectedLocation('');
+        setSelectedPort('');
+        setSelectedCountry('');
+        setSelectedDestPort('');
+        setSelectedCerts([]);
+        setCustomProfitRate('');
+        setPackagingCharges('');
+        setExtraCharges([]);
+        setResult(null);
+        setError('');
+        // Reset container type to first option
+        if (containerTypes.length > 0) {
+            setSelectedContainerType(containerTypes[0]);
+        }
+    };
+
     if (loading) {
         return (
             <div className="loading-screen">
@@ -530,7 +555,16 @@ export default function Home() {
                 {/* Main Content */}
                 <main>
                     <div className="card">
-                        <h2 style={{ marginBottom: 'var(--space-6)' }}>Calculate Export Rates</h2>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
+                            <h2 style={{ margin: 0 }}>Calculate Export Rates</h2>
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={clearForm}
+                            >
+                                Clear Form
+                            </button>
+                        </div>
 
                         {error && (
                             <div style={{

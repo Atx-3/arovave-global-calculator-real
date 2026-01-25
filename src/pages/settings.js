@@ -40,27 +40,62 @@ export default function SettingsPage() {
     const [showModal, setShowModal] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [formData, setFormData] = useState({});
+    const [saveMessage, setSaveMessage] = useState(''); // Shows "Saved!" confirmation
+    const [loading, setLoading] = useState(true);
 
-    // Load from localStorage or defaults
+    // Load from API (file-based storage)
     useEffect(() => {
-        setProducts(loadData('products', DEFAULT_PRODUCTS));
-        setLocations(loadData('locations', DEFAULT_LOCATIONS));
-        setPorts(loadData('ports', DEFAULT_PORTS));
-        setCountries(loadData('countries', DEFAULT_COUNTRIES));
-        setDestPorts(loadData('destPorts', DEFAULT_DEST_PORTS));
-        setContainers(loadData('containers', DEFAULT_CONTAINERS));
-        setCertifications(loadData('certifications', DEFAULT_CERTS));
-        setGeneralSettings(loadData('settings', DEFAULT_SETTINGS));
+        loadAllData();
     }, []);
 
-    function loadData(key, defaults) {
-        if (typeof window === 'undefined') return defaults;
-        const stored = localStorage.getItem(STORAGE_KEYS[key]);
-        return stored ? JSON.parse(stored) : defaults;
+    async function loadAllData() {
+        try {
+            const res = await fetch('/api/settings');
+            if (res.ok) {
+                const data = await res.json();
+                setProducts(data.products || DEFAULT_PRODUCTS);
+                setLocations(data.locations || DEFAULT_LOCATIONS);
+                setPorts(data.ports || DEFAULT_PORTS);
+                setCountries(data.countries || DEFAULT_COUNTRIES);
+                setDestPorts(data.destPorts || DEFAULT_DEST_PORTS);
+                setContainers(data.containers || DEFAULT_CONTAINERS);
+                setCertifications(data.certifications || DEFAULT_CERTS);
+                setGeneralSettings(data.settings || DEFAULT_SETTINGS);
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            // Fall back to defaults
+            setProducts(DEFAULT_PRODUCTS);
+            setLocations(DEFAULT_LOCATIONS);
+            setPorts(DEFAULT_PORTS);
+            setCountries(DEFAULT_COUNTRIES);
+            setDestPorts(DEFAULT_DEST_PORTS);
+            setContainers(DEFAULT_CONTAINERS);
+            setCertifications(DEFAULT_CERTS);
+            setGeneralSettings(DEFAULT_SETTINGS);
+        }
+        setLoading(false);
     }
 
-    function saveData(key, data) {
-        localStorage.setItem(STORAGE_KEYS[key], JSON.stringify(data));
+    async function saveData(key, data) {
+        try {
+            const res = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: key, data })
+            });
+            if (res.ok) {
+                setSaveMessage('✓ Saved to file!');
+                setTimeout(() => setSaveMessage(''), 2000);
+            } else {
+                setSaveMessage('❌ Save failed');
+                setTimeout(() => setSaveMessage(''), 3000);
+            }
+        } catch (error) {
+            console.error('Error saving:', error);
+            setSaveMessage('❌ Save failed');
+            setTimeout(() => setSaveMessage(''), 3000);
+        }
     }
 
     // CRUD functions
@@ -180,7 +215,14 @@ export default function SettingsPage() {
                                 <div className="logo-tagline">Calculator Settings</div>
                             </div>
                         </div>
-                        <a href="/" className="btn btn-primary btn-sm">Back to Calculator</a>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                            {saveMessage && (
+                                <span style={{ color: 'green', fontWeight: 'var(--font-medium)', fontSize: 'var(--text-sm)' }}>
+                                    {saveMessage}
+                                </span>
+                            )}
+                            <a href="/" className="btn btn-primary btn-sm">Back to Calculator</a>
+                        </div>
                     </div>
                 </header>
 
@@ -201,12 +243,9 @@ export default function SettingsPage() {
 
                         {/* Action Buttons */}
                         {activeTab !== 'settings' && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+                            <div style={{ marginBottom: 'var(--space-4)' }}>
                                 <button className="btn btn-primary btn-sm" onClick={() => handleAdd(activeTab)}>
                                     + Add New
-                                </button>
-                                <button className="btn btn-secondary btn-sm" onClick={() => resetToDefaults(activeTab)}>
-                                    Reset to Defaults
                                 </button>
                             </div>
                         )}
@@ -365,9 +404,6 @@ export default function SettingsPage() {
                         {/* General Settings Tab */}
                         {activeTab === 'settings' && (
                             <div>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-4)' }}>
-                                    <button className="btn btn-secondary btn-sm" onClick={() => resetToDefaults('settings')}>Reset to Defaults</button>
-                                </div>
                                 <div className="form-group">
                                     <label className="form-label">Company Name</label>
                                     <input className="form-input" value={generalSettings.company_name || ''} onChange={(e) => handleSettingChange('company_name', e.target.value)} />
