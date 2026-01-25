@@ -12,8 +12,7 @@ import {
     getLocalFreightRate,
     getFreightRate,
     getCurrencySettings,
-    getSettings,
-    isDemoMode
+    getSettings
 } from '@/lib/db';
 import {
     calculateExportPricing,
@@ -519,12 +518,6 @@ export default function Home() {
                                 <div className="logo-text">AROVAVE GLOBAL</div>
                                 <div className="logo-tagline">FCL Export Rate Calculator</div>
                             </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                            {isDemoMode && (
-                                <span className="badge badge-warning">Demo Mode</span>
-                            )}
-                            <a href="/admin" className="btn btn-secondary btn-sm">Admin</a>
                         </div>
                     </div>
                 </header>
