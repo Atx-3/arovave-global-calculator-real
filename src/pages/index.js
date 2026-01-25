@@ -293,6 +293,7 @@ export default function Home() {
                 quantity: parseFloat(quantity),
                 containerType: selectedContainerType,
                 qtyPerContainer: qtyPerContainer,
+                containerCount: containerCount, // Pass form's container count for consistency
                 localFreightRate,
                 portHandlingPerContainer: port?.handling_per_container || 0,
                 chaCharges: port?.cha_charges || 0,

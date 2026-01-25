@@ -4,7 +4,7 @@
  */
 
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+// Note: jspdf-autotable is loaded dynamically in generateQuotationPDF to avoid SSR issues
 
 // Format currency as USD
 function formatCurrency(value) {
@@ -47,9 +47,12 @@ function drawPageBackground(doc) {
  * @param {Object} data - Quotation data
  * @param {Object} clientInfo - Client details (name, phone, company)
  * @param {string} logoDataUrl - Base64 data URL of the logo (optional)
- * @returns {jsPDF} PDF document
+ * @returns {Promise<jsPDF>} PDF document
  */
-export function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = null) {
+export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = null) {
+    // Dynamically import jspdf-autotable to avoid SSR issues
+    await import('jspdf-autotable');
+
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -508,7 +511,7 @@ async function loadLogoAsBase64() {
  */
 export async function downloadQuotationPDF(data, clientInfo = {}) {
     const logoDataUrl = await loadLogoAsBase64();
-    const doc = generateQuotationPDF(data, clientInfo, logoDataUrl);
+    const doc = await generateQuotationPDF(data, clientInfo, logoDataUrl);
     const filename = `Arovave_Quotation_${data.productName?.replace(/\s+/g, '_') || 'Export'}_${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(filename);
 }
@@ -521,6 +524,6 @@ export async function downloadQuotationPDF(data, clientInfo = {}) {
  */
 export async function getQuotationPDFBlob(data, clientInfo = {}) {
     const logoDataUrl = await loadLogoAsBase64();
-    const doc = generateQuotationPDF(data, clientInfo, logoDataUrl);
+    const doc = await generateQuotationPDF(data, clientInfo, logoDataUrl);
     return doc.output('blob');
 }

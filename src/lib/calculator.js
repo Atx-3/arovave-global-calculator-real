@@ -129,6 +129,7 @@ export function calculateExportPricing({
     // Container
     containerType,
     qtyPerContainer,
+    containerCount: providedContainerCount = null, // Optional: pass pre-calculated container count
 
     // Locations
     localFreightRate,  // Rate per container in INR
@@ -183,7 +184,10 @@ export function calculateExportPricing({
     // ============================================
     // STEP 1: CONTAINER CALCULATION
     // ============================================
-    const containerCount = calculateContainers(quantity, qtyPerContainer);
+    // Use provided container count if available, otherwise calculate
+    const containerCount = providedContainerCount !== null && providedContainerCount > 0
+        ? providedContainerCount
+        : calculateContainers(quantity, qtyPerContainer);
 
     // ============================================
     // STEP 2: PACKAGING CHARGES (per box, added to product cost)
