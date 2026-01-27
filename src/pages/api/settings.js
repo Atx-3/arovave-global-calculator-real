@@ -58,6 +58,11 @@ function readData() {
 // Write data to file
 function writeData(data) {
     try {
+        // Create directory if it doesn't exist
+        const dir = path.dirname(DATA_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
         fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
         return true;
     } catch (error) {
