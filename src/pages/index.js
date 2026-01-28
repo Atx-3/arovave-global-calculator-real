@@ -12,7 +12,8 @@ import {
     getLocalFreightRate,
     getFreightRate,
     getCurrencySettings,
-    getSettings
+    getSettings,
+    clearSettingsCache
 } from '@/lib/db';
 import {
     calculateExportPricing,
@@ -83,57 +84,82 @@ export default function Home() {
     const [clientCompany, setClientCompany] = useState('');
 
     // Container specifications (internal dimensions in cm)
-    const CONTAINER_SPECS = {
-        '20FT': { lengthCm: 590, widthCm: 235, heightCm: 239, maxWeightKg: 28000 },
-        '40FT': { lengthCm: 1200, widthCm: 235, heightCm: 239, maxWeightKg: 28000 }
+    // All specs are now dynamic from settings!
+    const getContainerSpecs = (containerCode) => {
+        // Get data from settings (selected container type)
+        const containerData = containerTypes.find(c => c.code === containerCode);
+        const defaultSpecs = {
+            '20FT': { lengthCm: 590, widthCm: 235, heightCm: 239, maxWeightKg: 18000 },
+            '40FT': { lengthCm: 1200, widthCm: 235, heightCm: 239, maxWeightKg: 26000 }
+        };
+        const specs = { ...(defaultSpecs[containerCode] || defaultSpecs['20FT']) };
+
+        // Override with settings values if available
+        if (containerData) {
+            if (containerData.max_weight_kg) specs.maxWeightKg = containerData.max_weight_kg;
+            if (containerData.length_cm) specs.lengthCm = containerData.length_cm;
+            if (containerData.width_cm) specs.widthCm = containerData.width_cm;
+            if (containerData.height_cm) specs.heightCm = containerData.height_cm;
+        }
+        return specs;
+    };
+
+    // Load all master data
+    async function loadAllMasterData() {
+        try {
+            const [
+                productsData,
+                containerTypesData,
+                locationsData,
+                portsData,
+                countriesData,
+                certsData,
+                costHeadsData,
+                settingsData
+            ] = await Promise.all([
+                getProducts(),
+                getContainerTypes(),
+                getLocations(),
+                getPorts(),
+                getCountries(),
+                getCertifications(),
+                getCostHeads(),
+                getSettings()
+            ]);
+
+            setProducts(productsData || []);
+            setContainerTypes(containerTypesData || []);
+            setLocations(locationsData || []);
+            setPorts(portsData || []);
+            setCountries(countriesData || []);
+            setCertifications(certsData || []);
+            setCostHeads(costHeadsData || []);
+            setSettings(settingsData || {});
+
+            // Set default container type
+            if (containerTypesData?.length > 0) {
+                setSelectedContainerType(containerTypesData[0]);
+            }
+
+            setLoading(false);
+        } catch (err) {
+            console.error('Error loading data:', err);
+            setError('Failed to load data. Please refresh.');
+            setLoading(false);
+        }
+    }
+
+    // Refresh data from settings (clears cache first)
+    const refreshData = async () => {
+        clearSettingsCache();
+        setLoading(true);
+        await loadAllMasterData();
+        setResult(null);
     };
 
     // Load initial data
     useEffect(() => {
-        async function loadData() {
-            try {
-                const [
-                    productsData,
-                    containerTypesData,
-                    locationsData,
-                    portsData,
-                    countriesData,
-                    certsData,
-                    costHeadsData,
-                    settingsData
-                ] = await Promise.all([
-                    getProducts(),
-                    getContainerTypes(),
-                    getLocations(),
-                    getPorts(),
-                    getCountries(),
-                    getCertifications(),
-                    getCostHeads(),
-                    getSettings()
-                ]);
-
-                setProducts(productsData || []);
-                setContainerTypes(containerTypesData || []);
-                setLocations(locationsData || []);
-                setPorts(portsData || []);
-                setCountries(countriesData || []);
-                setCertifications(certsData || []);
-                setCostHeads(costHeadsData || []);
-                setSettings(settingsData || {});
-
-                // Set default container type
-                if (containerTypesData?.length > 0) {
-                    setSelectedContainerType(containerTypesData[0]);
-                }
-
-                setLoading(false);
-            } catch (err) {
-                console.error('Error loading data:', err);
-                setError('Failed to load data. Please refresh.');
-                setLoading(false);
-            }
-        }
-        loadData();
+        loadAllMasterData();
     }, []);
 
     // Load destination ports when country changes
@@ -231,15 +257,23 @@ export default function Home() {
 
     // Calculate rates
     const handleCalculate = async () => {
-        // Validation
+        // Base Validation (all tiers)
         if (!selectedProduct) return setError('Please select a product');
         if (!quantity || parseFloat(quantity) <= 0) return setError('Please enter a valid quantity');
         if (!boxesPerContainer || parseFloat(boxesPerContainer) <= 0) return setError('Please enter boxes per container');
         if (!selectedContainerType) return setError('Please select a container type');
         if (!selectedLocation) return setError('Please select manufacturing location');
-        if (!selectedPort) return setError('Please select port of loading');
-        if (!selectedCountry) return setError('Please select destination country');
-        if (!selectedDestPort) return setError('Please select destination port');
+
+        // FOB/CIF tier needs port
+        if ((selectedTier === 'fob' || selectedTier === 'cif') && !selectedPort) {
+            return setError('Please select port of loading');
+        }
+
+        // CIF tier needs destination
+        if (selectedTier === 'cif') {
+            if (!selectedCountry) return setError('Please select destination country');
+            if (!selectedDestPort) return setError('Please select destination port');
+        }
 
         setError('');
         setCalculating(true);
@@ -282,9 +316,8 @@ export default function Home() {
             // Calculate packaging per box (packaging charge × total boxes)
             const totalPackagingCharges = (parseFloat(packagingCharges) || 0) * totalBoxesNeeded;
 
-            // Calculate total extra charges (packaging + custom extras)
-            const totalExtraCharges = totalPackagingCharges +
-                extraCharges.reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
+            // Calculate extra charges only (without packaging - avoid double count)
+            const totalExtraChargesOnly = extraCharges.reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
 
             // Use custom profit rate if provided (even if 0), otherwise use settings
             const effectiveProfitRate = customProfitRate !== '' && !isNaN(parseFloat(customProfitRate))
@@ -316,8 +349,8 @@ export default function Home() {
                 profitRate: effectiveProfitRate,
                 profitType: settings.profit_type || 'percentage',
                 selectedTier: selectedTier,
-                packagingCharges: parseFloat(packagingCharges) || 0,
-                extraCharges: totalExtraCharges
+                packagingCharges: totalPackagingCharges, // Total = boxes × rate (in INR)
+                extraCharges: totalExtraChargesOnly // Only extra charges, no packaging
             });
 
             setResult({
@@ -333,7 +366,8 @@ export default function Home() {
                 loadingPort: port?.name,
                 country: country?.name,
                 destinationPort: destPort?.name,
-                certifications: selectedCertifications.map(c => c.name)
+                certifications: selectedCertifications.map(c => c.name),
+                selectedTier: selectedTier // Pass tier for PDF filtering
             });
         } catch (err) {
             console.error('Calculation error:', err);
@@ -367,19 +401,86 @@ export default function Home() {
         }
     };
 
-    // Share via WhatsApp
+    // Share via WhatsApp - with detailed breakdown like PDF
     const handleWhatsAppShare = () => {
         if (result) {
-            const text = `*AROVAVE GLOBAL - Export Quotation*%0A%0A` +
-                `Product: ${result.productName}%0A` +
-                `Quantity: ${formatNumber(result.quantity)} ${result.unit}%0A` +
-                `Containers: ${result.containerCount} × ${result.containerCode}%0A` +
-                `Destination: ${result.destinationPort}, ${result.country}%0A%0A` +
-                `*Prices:*%0A` +
-                `EX-FACTORY: ${formatUSD(result.pricing.exFactory.usd)}%0A` +
-                `FOB: ${formatUSD(result.pricing.fob.usd)}%0A` +
-                `CIF: ${formatUSD(result.pricing.cif.usd)}%0A%0A` +
-                `Contact us for more details!`;
+            const tier = result.selectedTier || 'cif';
+            const breakdown = result.pricing?.breakdown || {};
+
+            // Get tier label and final price
+            let tierLabel = 'CIF';
+            let finalPrice = result.pricing.cif.usd;
+            if (tier === 'exFactory') {
+                tierLabel = 'Ex-Factory';
+                finalPrice = result.pricing.exFactory.usd;
+            } else if (tier === 'fob') {
+                tierLabel = 'FOB';
+                finalPrice = result.pricing.fob.usd;
+            }
+
+            // Build detailed breakdown
+            let breakdownText = '*Cost Breakdown:*%0A';
+
+            // Product Cost (always)
+            if (breakdown.productBase?.total) {
+                breakdownText += `• Product: ${formatINR(breakdown.productBase.total)}%0A`;
+            }
+
+            // Packaging (always)
+            if (breakdown.packagingCharges?.total > 0) {
+                breakdownText += `• Packaging: ${formatINR(breakdown.packagingCharges.total)}%0A`;
+            }
+
+            // Certifications (always)
+            if (breakdown.certifications?.items?.length > 0) {
+                breakdown.certifications.items.forEach(cert => {
+                    breakdownText += `• ${cert.name}: ${formatINR(cert.cost)}%0A`;
+                });
+            }
+
+            // FOB/CIF items
+            if (tier === 'fob' || tier === 'cif') {
+                if (breakdown.localFreight?.total > 0) {
+                    breakdownText += `• Inland Transport: ${formatINR(breakdown.localFreight.total)}%0A`;
+                }
+                if (breakdown.handling?.total > 0) {
+                    breakdownText += `• Handling: ${formatINR(breakdown.handling.total)}%0A`;
+                }
+                if (breakdown.port?.total > 0) {
+                    breakdownText += `• Port & Customs: ${formatINR(breakdown.port.total)}%0A`;
+                }
+            }
+
+            // CIF only items
+            if (tier === 'cif') {
+                if (breakdown.freight?.totalWithGST > 0) {
+                    breakdownText += `• Int'l Freight: ${formatINR(breakdown.freight.totalWithGST)}%0A`;
+                }
+                if (breakdown.insurance?.total > 0) {
+                    breakdownText += `• Insurance: ${formatINR(breakdown.insurance.total)}%0A`;
+                }
+            }
+
+            // Build destination info
+            let destinationInfo = '';
+            if (tier === 'fob' || tier === 'cif') {
+                destinationInfo = `Port: ${result.loadingPort || 'N/A'}%0A`;
+            }
+            if (tier === 'cif') {
+                destinationInfo += `Destination: ${result.destinationPort || 'N/A'}, ${result.country || 'N/A'}%0A`;
+            }
+
+            const text = `*AROVAVE GLOBAL - Export Quotation*%0A` +
+                `━━━━━━━━━━━━━━━━━━%0A%0A` +
+                `*Product:* ${result.productName}%0A` +
+                `*HSN:* ${result.hsnCode || 'N/A'}%0A` +
+                `*Quantity:* ${formatNumber(result.quantity)} ${result.unit}%0A` +
+                `*Containers:* ${result.containerCount} × ${result.containerCode}%0A` +
+                (destinationInfo ? `${destinationInfo}` : '') +
+                `%0A${breakdownText}%0A` +
+                `━━━━━━━━━━━━━━━━━━%0A` +
+                `*Total (${tierLabel}):* ${formatUSD(finalPrice)}%0A%0A` +
+                `_Contact us for more details!_`;
 
             window.open(`https://wa.me/?text=${text}`, '_blank');
         }
@@ -401,7 +502,7 @@ export default function Home() {
         if (!weight || weight <= 0) return setCalcError('Please enter valid box weight');
 
         const containerCode = selectedContainerType?.code || '20FT';
-        const container = CONTAINER_SPECS[containerCode];
+        const container = getContainerSpecs(containerCode);
 
         // Check if box fits
         const dims = [length, width, height].sort((a, b) => b - a);
@@ -482,8 +583,8 @@ export default function Home() {
             setBoxesPerContainer(calcResult.boxesPerContainer.toString());
             setBoxWeightMain(calcResult.boxWeight.toString());
             setShowCalcModal(false);
-            setCalcResult(null);
-            setBoxLength(''); setBoxWidth(''); setBoxHeight(''); setBoxWeight('');
+            // Keep box dimensions - don't clear them so user can re-check anytime!
+            // setCalcResult(null); // Also keep the result for reference
         }
     };
 
@@ -548,7 +649,17 @@ export default function Home() {
                                 <div className="logo-tagline">FCL Export Rate Calculator</div>
                             </div>
                         </div>
-                        <a href="/settings" className="btn btn-secondary btn-sm">Settings</a>
+                        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={refreshData}
+                                title="Reload data from settings"
+                            >
+                                🔄 Refresh
+                            </button>
+                            <a href="/settings" className="btn btn-secondary btn-sm">Settings</a>
+                        </div>
                     </div>
                 </header>
 
@@ -577,6 +688,50 @@ export default function Home() {
                                 {error}
                             </div>
                         )}
+
+                        {/* Pricing Tier Selection - FIRST THING TO SELECT */}
+                        <div className="form-group" style={{
+                            background: 'linear-gradient(135deg, var(--primary-50) 0%, var(--bg-secondary) 100%)',
+                            borderRadius: 'var(--radius-lg)',
+                            padding: 'var(--space-4)',
+                            marginBottom: 'var(--space-5)',
+                            border: '1px solid var(--primary-100)'
+                        }}>
+                            <label className="form-label" style={{ marginBottom: 'var(--space-3)', fontWeight: 'var(--font-bold)' }}>
+                                Select Quote Type *
+                            </label>
+                            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                                <button
+                                    type="button"
+                                    className={`btn ${selectedTier === 'exFactory' ? 'btn-primary' : 'btn-secondary'}`}
+                                    onClick={() => { setSelectedTier('exFactory'); setResult(null); }}
+                                    style={{ flex: 1, minWidth: '100px' }}
+                                >
+                                    Ex Factory
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn ${selectedTier === 'fob' ? 'btn-primary' : 'btn-secondary'}`}
+                                    onClick={() => { setSelectedTier('fob'); setResult(null); }}
+                                    style={{ flex: 1, minWidth: '100px' }}
+                                >
+                                    FOB
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn ${selectedTier === 'cif' ? 'btn-primary' : 'btn-secondary'}`}
+                                    onClick={() => { setSelectedTier('cif'); setResult(null); }}
+                                    style={{ flex: 1, minWidth: '100px' }}
+                                >
+                                    CIF
+                                </button>
+                            </div>
+                            <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)', display: 'block' }}>
+                                {selectedTier === 'exFactory' && '🏭 Factory gate price with profit included'}
+                                {selectedTier === 'fob' && '🚢 Free on Board (includes local freight, port charges) with profit'}
+                                {selectedTier === 'cif' && '🌍 Cost Insurance Freight (full export price) with profit'}
+                            </small>
+                        </div>
 
                         {/* Product Selection */}
                         <div className="form-group">
@@ -723,161 +878,135 @@ export default function Home() {
                             </select>
                         </div>
 
-                        {/* Factory Pincode for Distance */}
-                        <div className="form-group">
-                            <label className="form-label">Factory Pincode (for distance)</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="e.g., 110001"
-                                value={factoryPincode}
-                                onChange={(e) => {
-                                    const pin = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                    setFactoryPincode(pin);
-                                    setDistanceInfo(null);
-                                    // Auto-calculate distance when 6 digits entered and port selected
-                                    if (pin.length >= 3 && selectedPort) {
-                                        const port = ports.find(p => p.id == selectedPort);
-                                        if (port) {
-                                            const result = calculateDistanceFromPincodeToPort(pin, port.code);
-                                            if (!result.error) {
-                                                setDistanceInfo(result);
-                                                setDistanceKm(result.distance.toString());
+                        {/* FOB/CIF Fields: Port of Loading Section */}
+                        {(selectedTier === 'fob' || selectedTier === 'cif') && (
+                            <>
+                                {/* Factory Pincode for Distance */}
+                                <div className="form-group">
+                                    <label className="form-label">Factory Pincode (for distance)</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="e.g., 110001"
+                                        value={factoryPincode}
+                                        onChange={(e) => {
+                                            const pin = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                            setFactoryPincode(pin);
+                                            setDistanceInfo(null);
+                                            // Auto-calculate distance when 6 digits entered and port selected
+                                            if (pin.length >= 3 && selectedPort) {
+                                                const port = ports.find(p => p.id == selectedPort);
+                                                if (port) {
+                                                    const result = calculateDistanceFromPincodeToPort(pin, port.code);
+                                                    if (!result.error) {
+                                                        setDistanceInfo(result);
+                                                        setDistanceKm(result.distance.toString());
+                                                    }
+                                                }
                                             }
-                                        }
-                                    }
-                                }}
-                                maxLength={6}
-                            />
-                            <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-                                Enter 6-digit pincode to auto-calculate distance
-                            </small>
-                        </div>
-
-                        {/* Port of Loading */}
-                        <div className="form-group">
-                            <label className="form-label">Port of Loading (India) *</label>
-                            <select
-                                className="form-select"
-                                value={selectedPort}
-                                onChange={(e) => {
-                                    setSelectedPort(e.target.value);
-                                    setResult(null);
-                                    // Auto-calculate distance when port changes
-                                    if (factoryPincode.length >= 3 && e.target.value) {
-                                        const port = ports.find(p => p.id == e.target.value);
-                                        if (port) {
-                                            const result = calculateDistanceFromPincodeToPort(factoryPincode, port.code);
-                                            if (!result.error) {
-                                                setDistanceInfo(result);
-                                                setDistanceKm(result.distance.toString());
-                                            }
-                                        }
-                                    }
-                                }}
-                            >
-                                <option value="">Select port</option>
-                                {ports.map(port => (
-                                    <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Distance Display & Input */}
-                        <div className="form-group">
-                            <label className="form-label">Distance (km)</label>
-                            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    placeholder="Enter or auto-calculated"
-                                    value={distanceKm}
-                                    onChange={(e) => setDistanceKm(e.target.value)}
-                                    min="0"
-                                    style={{ flex: 1 }}
-                                />
-                                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>km</span>
-                            </div>
-                            {distanceInfo && (
-                                <div style={{
-                                    marginTop: 'var(--space-2)',
-                                    padding: 'var(--space-2)',
-                                    background: 'var(--bg-secondary)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    fontSize: 'var(--text-xs)',
-                                    color: 'var(--text-secondary)'
-                                }}>
-                                    📍 {distanceInfo.from} → {distanceInfo.to}: <strong>{distanceInfo.distance} km</strong> (approx road distance)
+                                        }}
+                                        maxLength={6}
+                                    />
+                                    <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
+                                        Enter 6-digit pincode to auto-calculate distance
+                                    </small>
                                 </div>
-                            )}
-                        </div>
 
-                        {/* Destination Country */}
-                        <div className="form-group">
-                            <label className="form-label">Destination Country *</label>
-                            <select
-                                className="form-select"
-                                value={selectedCountry}
-                                onChange={(e) => { setSelectedCountry(e.target.value); setResult(null); }}
-                            >
-                                <option value="">Select country</option>
-                                {countries.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                                {/* Port of Loading */}
+                                <div className="form-group">
+                                    <label className="form-label">Port of Loading (India) *</label>
+                                    <select
+                                        className="form-select"
+                                        value={selectedPort}
+                                        onChange={(e) => {
+                                            setSelectedPort(e.target.value);
+                                            setResult(null);
+                                            // Auto-calculate distance when port changes
+                                            if (factoryPincode.length >= 3 && e.target.value) {
+                                                const port = ports.find(p => p.id == e.target.value);
+                                                if (port) {
+                                                    const result = calculateDistanceFromPincodeToPort(factoryPincode, port.code);
+                                                    if (!result.error) {
+                                                        setDistanceInfo(result);
+                                                        setDistanceKm(result.distance.toString());
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <option value="">Select port</option>
+                                        {ports.map(port => (
+                                            <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                        {/* Destination Port */}
-                        <div className="form-group">
-                            <label className="form-label">Destination Port *</label>
-                            <select
-                                className="form-select"
-                                value={selectedDestPort}
-                                onChange={(e) => { setSelectedDestPort(e.target.value); setResult(null); }}
-                                disabled={!selectedCountry}
-                            >
-                                <option value="">{!selectedCountry ? 'Select country first' : 'Select port'}</option>
-                                {destinationPorts.map(port => (
-                                    <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
-                                ))}
-                            </select>
-                        </div>
+                                {/* Distance Display & Input */}
+                                <div className="form-group">
+                                    <label className="form-label">Distance (km)</label>
+                                    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="Enter or auto-calculated"
+                                            value={distanceKm}
+                                            onChange={(e) => setDistanceKm(e.target.value)}
+                                            min="0"
+                                            style={{ flex: 1 }}
+                                        />
+                                        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>km</span>
+                                    </div>
+                                    {distanceInfo && (
+                                        <div style={{
+                                            marginTop: 'var(--space-2)',
+                                            padding: 'var(--space-2)',
+                                            background: 'var(--bg-secondary)',
+                                            borderRadius: 'var(--radius-sm)',
+                                            fontSize: 'var(--text-xs)',
+                                            color: 'var(--text-secondary)'
+                                        }}>
+                                            📍 {distanceInfo.from} → {distanceInfo.to}: <strong>{distanceInfo.distance} km</strong> (approx road distance)
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
 
-                        {/* Pricing Tier Selection */}
-                        <div className="form-group">
-                            <label className="form-label">Price Quote Type *</label>
-                            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                                <button
-                                    type="button"
-                                    className={`btn ${selectedTier === 'exFactory' ? 'btn-primary' : 'btn-secondary'}`}
-                                    onClick={() => { setSelectedTier('exFactory'); setResult(null); }}
-                                    style={{ flex: 1, minWidth: '100px' }}
-                                >
-                                    Ex Factory
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`btn ${selectedTier === 'fob' ? 'btn-primary' : 'btn-secondary'}`}
-                                    onClick={() => { setSelectedTier('fob'); setResult(null); }}
-                                    style={{ flex: 1, minWidth: '100px' }}
-                                >
-                                    FOB
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`btn ${selectedTier === 'cif' ? 'btn-primary' : 'btn-secondary'}`}
-                                    onClick={() => { setSelectedTier('cif'); setResult(null); }}
-                                    style={{ flex: 1, minWidth: '100px' }}
-                                >
-                                    CIF
-                                </button>
-                            </div>
-                            <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)', display: 'block' }}>
-                                {selectedTier === 'exFactory' && 'Factory gate price with profit included'}
-                                {selectedTier === 'fob' && 'Free on Board (includes local freight, port charges) with profit'}
-                                {selectedTier === 'cif' && 'Cost Insurance Freight (full export price) with profit'}
-                            </small>
-                        </div>
+                        {/* CIF Fields: Destination Section */}
+                        {selectedTier === 'cif' && (
+                            <>
+                                {/* Destination Country */}
+                                <div className="form-group">
+                                    <label className="form-label">Destination Country *</label>
+                                    <select
+                                        className="form-select"
+                                        value={selectedCountry}
+                                        onChange={(e) => { setSelectedCountry(e.target.value); setResult(null); }}
+                                    >
+                                        <option value="">Select country</option>
+                                        {countries.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Destination Port */}
+                                <div className="form-group">
+                                    <label className="form-label">Destination Port *</label>
+                                    <select
+                                        className="form-select"
+                                        value={selectedDestPort}
+                                        onChange={(e) => { setSelectedDestPort(e.target.value); setResult(null); }}
+                                        disabled={!selectedCountry}
+                                    >
+                                        <option value="">{!selectedCountry ? 'Select country first' : 'Select port'}</option>
+                                        {destinationPorts.map(port => (
+                                            <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </>
+                        )}
 
                         {/* Certifications */}
                         <div className="form-group">
@@ -1218,10 +1347,10 @@ export default function Home() {
                                             </tr>
                                         ))}
 
-                                        {/* FOB Subtotal - FOB and CIF only */}
-                                        {(selectedTier === 'fob' || selectedTier === 'cif') && (
+                                        {/* FOB Subtotal - Only for CIF tier (shows FOB as intermediate subtotal) */}
+                                        {selectedTier === 'cif' && (
                                             <tr style={{ background: 'var(--bg-glass)', fontWeight: 'var(--font-semibold)' }}>
-                                                <td colSpan="2">FOB Total</td>
+                                                <td colSpan="2">FOB Subtotal</td>
                                                 <td>{formatINR(result.pricing.fob.inr)}</td>
                                             </tr>
                                         )}
@@ -1453,7 +1582,7 @@ export default function Home() {
                 boxWeight={boxWeight}
                 setBoxWeight={setBoxWeight}
                 onApply={applyCalcResult}
-                CONTAINER_SPECS={CONTAINER_SPECS}
+                CONTAINER_SPECS={getContainerSpecs}
             />
         </>
     );
@@ -1462,7 +1591,8 @@ export default function Home() {
 // Container Calculator Modal Component - integrated at the end of the file
 function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, calcError, boxLength, setBoxLength, boxWidth, setBoxWidth, boxHeight, setBoxHeight, boxWeight, setBoxWeight, onApply, CONTAINER_SPECS }) {
     if (!show) return null;
-    const container = CONTAINER_SPECS[containerCode] || CONTAINER_SPECS['20FT'];
+    // CONTAINER_SPECS is now a function, call it with containerCode
+    const container = typeof CONTAINER_SPECS === 'function' ? CONTAINER_SPECS(containerCode) : (CONTAINER_SPECS[containerCode] || CONTAINER_SPECS['20FT']);
 
     return (
         <div style={{

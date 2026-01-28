@@ -182,7 +182,7 @@ export default function SettingsPage() {
             case 'ports': return { name: '', code: '', city: '', handling_per_container: 0, cha_charges: 0, customs_per_shipment: 0 };
             case 'countries': return { name: '', code: '', ecgc_risk_category: 'A', ecgc_rate_percent: 0.3 };
             case 'destPorts': return { name: '', code: '', country_id: 1 };
-            case 'containers': return { name: '', code: '', max_weight_kg: 0, max_volume_cbm: 0, is_active: true };
+            case 'containers': return { name: '', code: '', max_weight_kg: 0, max_volume_cbm: 0, length_cm: 0, width_cm: 0, height_cm: 0, is_active: true };
             case 'certifications': return { name: '', cost_flat: 0, charge_type: 'per_shipment', is_mandatory: false };
             default: return {};
         }
@@ -523,10 +523,16 @@ export default function SettingsPage() {
                         {activeTab === 'containers' && (
                             <>
                                 <div className="form-group"><label className="form-label">Container Name</label><input className="form-input" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} /></div>
-                                <div className="form-group"><label className="form-label">Code</label><input className="form-input" value={formData.code || ''} onChange={e => setFormData({ ...formData, code: e.target.value })} /></div>
+                                <div className="form-group"><label className="form-label">Code (e.g. 20FT, 40FT)</label><input className="form-input" value={formData.code || ''} onChange={e => setFormData({ ...formData, code: e.target.value })} /></div>
                                 <div className="form-row">
                                     <div className="form-group"><label className="form-label">Max Weight (KG)</label><input className="form-input" type="number" value={formData.max_weight_kg || ''} onChange={e => setFormData({ ...formData, max_weight_kg: parseInt(e.target.value) || 0 })} /></div>
                                     <div className="form-group"><label className="form-label">Max Volume (CBM)</label><input className="form-input" type="number" value={formData.max_volume_cbm || ''} onChange={e => setFormData({ ...formData, max_volume_cbm: parseInt(e.target.value) || 0 })} /></div>
+                                </div>
+                                <label className="form-label" style={{ marginTop: 'var(--space-3)', marginBottom: 'var(--space-2)', display: 'block', fontWeight: '600' }}>Internal Dimensions (cm)</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-2)' }}>
+                                    <div className="form-group"><label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Length (cm)</label><input className="form-input" type="number" placeholder="e.g. 590" value={formData.length_cm || ''} onChange={e => setFormData({ ...formData, length_cm: parseInt(e.target.value) || 0 })} /></div>
+                                    <div className="form-group"><label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Width (cm)</label><input className="form-input" type="number" placeholder="e.g. 235" value={formData.width_cm || ''} onChange={e => setFormData({ ...formData, width_cm: parseInt(e.target.value) || 0 })} /></div>
+                                    <div className="form-group"><label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Height (cm)</label><input className="form-input" type="number" placeholder="e.g. 239" value={formData.height_cm || ''} onChange={e => setFormData({ ...formData, height_cm: parseInt(e.target.value) || 0 })} /></div>
                                 </div>
                                 <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active || false} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} /> Active</label></div>
                             </>

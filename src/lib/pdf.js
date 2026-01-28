@@ -108,55 +108,42 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     yPos += 15;
 
     // ============================================
-    // PRICING SUMMARY (Right below header)
+    // PRICING SUMMARY - Single Selected Tier Price
     // ============================================
     const exFactoryPrice = data.pricing?.exFactory?.usd || 0;
     const fobPrice = data.pricing?.fob?.usd || 0;
     const cifPrice = data.pricing?.cif?.usd || 0;
+    const headerTier = data.pricing?.selectedTier || 'cif';
 
-    // Three price boxes in a row
-    const boxWidth = (pageWidth - 60) / 3;
-    const boxHeight = 28;
-    const startX = 20;
+    // Get price and label based on selected tier
+    let selectedPrice = cifPrice;
+    let tierLabel = 'CIF (Cost Insurance Freight)';
+    if (headerTier === 'exFactory') {
+        selectedPrice = exFactoryPrice;
+        tierLabel = 'EX-FACTORY';
+    } else if (headerTier === 'fob') {
+        selectedPrice = fobPrice;
+        tierLabel = 'FOB (Free On Board)';
+    }
 
-    // Ex-Factory Box
-    doc.setFillColor(245, 242, 235);
-    doc.roundedRect(startX, yPos, boxWidth, boxHeight, 3, 3, 'F');
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...textMuted);
-    doc.text('EX-FACTORY', startX + boxWidth / 2, yPos + 8, { align: 'center' });
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...textDark);
-    doc.text(formatCurrency(exFactoryPrice), startX + boxWidth / 2, yPos + 20, { align: 'center' });
+    // Single prominent price box - full width
+    const priceBoxWidth = pageWidth - 40;
+    const priceBoxHeight = 35;
+    doc.setFillColor(0, 150, 150);  // Teal accent
+    doc.roundedRect(20, yPos, priceBoxWidth, priceBoxHeight, 4, 4, 'F');
 
-    // FOB Box
-    const fobX = startX + boxWidth + 10;
-    doc.setFillColor(245, 242, 235);
-    doc.roundedRect(fobX, yPos, boxWidth, boxHeight, 3, 3, 'F');
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...textMuted);
-    doc.text('FOB', fobX + boxWidth / 2, yPos + 8, { align: 'center' });
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...textDark);
-    doc.text(formatCurrency(fobPrice), fobX + boxWidth / 2, yPos + 20, { align: 'center' });
-
-    // CIF Box (highlighted)
-    const cifX = fobX + boxWidth + 10;
-    doc.setFillColor(0, 150, 150);
-    doc.roundedRect(cifX, yPos, boxWidth, boxHeight, 3, 3, 'F');
-    doc.setFontSize(8);
+    // Tier label
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(255, 255, 255);
-    doc.text('CIF TOTAL', cifX + boxWidth / 2, yPos + 8, { align: 'center' });
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(formatCurrency(cifPrice), cifX + boxWidth / 2, yPos + 20, { align: 'center' });
+    doc.text(tierLabel, pageWidth / 2, yPos + 10, { align: 'center' });
 
-    yPos += boxHeight + 15;
+    // Price (large, bold)
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatCurrency(selectedPrice), pageWidth / 2, yPos + 26, { align: 'center' });
+
+    yPos += priceBoxHeight + 12;
 
     // ============================================
     // BILLED TO & SHIPMENT DETAILS (Two columns)
@@ -260,9 +247,10 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     // COST BREAKDOWN TABLE
     // ============================================
     const breakdown = data.pricing?.breakdown || {};
+    const selectedTier = data.pricing?.selectedTier || 'cif';
     const tableBody = [];
 
-    // Product Base
+    // Product Base - always shown for all tiers
     if (breakdown.productBase) {
         tableBody.push([
             'Product Cost',
@@ -272,7 +260,7 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
         ]);
     }
 
-    // Packaging
+    // Packaging - always shown for all tiers
     if (breakdown.packagingCharges?.total > 0) {
         tableBody.push([
             'Packaging & Extras',
@@ -282,40 +270,43 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
         ]);
     }
 
-    // Local Freight
-    if (breakdown.localFreight?.total > 0) {
-        tableBody.push([
-            'Inland Transport',
-            formatINR(breakdown.localFreight.perContainer || 0),
-            `${data.containerCount || 1} containers`,
-            formatCurrency(breakdown.localFreight.total)
-        ]);
-    }
-
-    // Handling
-    if (breakdown.handling?.total > 0) {
-        tableBody.push([
-            'Handling Charges',
-            '-',
-            '-',
-            formatCurrency(breakdown.handling.total)
-        ]);
-    }
-
-    // Port
-    if (breakdown.port) {
-        const portTotal = (breakdown.port.handling || 0) + (breakdown.port.cha || 0) + (breakdown.port.customs || 0);
-        if (portTotal > 0) {
+    // === FOB & CIF only items ===
+    if (selectedTier === 'fob' || selectedTier === 'cif') {
+        // Local Freight
+        if (breakdown.localFreight?.total > 0) {
             tableBody.push([
-                'Port & Customs',
-                '-',
-                '-',
-                formatCurrency(portTotal)
+                'Inland Transport',
+                formatINR(breakdown.localFreight.perContainer || 0),
+                `${data.containerCount || 1} containers`,
+                formatCurrency(breakdown.localFreight.total)
             ]);
+        }
+
+        // Handling
+        if (breakdown.handling?.total > 0) {
+            tableBody.push([
+                'Handling Charges',
+                '-',
+                '-',
+                formatCurrency(breakdown.handling.total)
+            ]);
+        }
+
+        // Port
+        if (breakdown.port) {
+            const portTotal = (breakdown.port.handling || 0) + (breakdown.port.cha || 0) + (breakdown.port.customs || 0);
+            if (portTotal > 0) {
+                tableBody.push([
+                    'Port & Customs',
+                    '-',
+                    '-',
+                    formatCurrency(portTotal)
+                ]);
+            }
         }
     }
 
-    // Certifications
+    // Certifications - shown in ALL tiers (EX-FACTORY, FOB, CIF)
     if (breakdown.certifications?.items?.length > 0) {
         breakdown.certifications.items.forEach(cert => {
             tableBody.push([
@@ -327,24 +318,27 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
         });
     }
 
-    // Freight
-    if (breakdown.freight?.totalWithGST > 0) {
-        tableBody.push([
-            'International Freight',
-            formatCurrency(breakdown.freight.perContainer || 0),
-            `${data.containerCount || 1} containers`,
-            formatCurrency(breakdown.freight.totalWithGST)
-        ]);
-    }
+    // === CIF only items ===
+    if (selectedTier === 'cif') {
+        // International Freight
+        if (breakdown.freight?.totalWithGST > 0) {
+            tableBody.push([
+                'International Freight',
+                formatCurrency(breakdown.freight.perContainer || 0),
+                `${data.containerCount || 1} containers`,
+                formatCurrency(breakdown.freight.totalWithGST)
+            ]);
+        }
 
-    // Insurance
-    if (breakdown.insurance?.total > 0) {
-        tableBody.push([
-            'Marine Insurance',
-            `${breakdown.insurance.rate || 0}%`,
-            '-',
-            formatCurrency(breakdown.insurance.total)
-        ]);
+        // Insurance
+        if (breakdown.insurance?.total > 0) {
+            tableBody.push([
+                'Marine Insurance',
+                `${breakdown.insurance.rate || 0}%`,
+                '-',
+                formatCurrency(breakdown.insurance.total)
+            ]);
+        }
     }
 
     doc.autoTable({
@@ -390,10 +384,10 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     // TOTALS Section (right aligned)
     // ============================================
     // Note: exFactoryPrice, fobPrice, cifPrice already defined above
-    const profitRate = breakdown.profit?.rate || 0;
-    const selectedTier = data.pricing?.selectedTier || 'cif';
+    const profitRate = breakdown.profitIncluded?.rate || 0;
+    const profitAmount = breakdown.profitIncluded?.amount || 0;
 
-    // Subtotals
+    // Subtotals - show only relevant tier totals
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...textMuted);
@@ -401,31 +395,48 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     const rightCol = pageWidth - 20;
     const labelCol = rightCol - 60;
 
+    // Always show Ex-Factory
     doc.text('Ex-Factory', labelCol, yPos, { align: 'right' });
     doc.setTextColor(...textDark);
     doc.text(formatCurrency(exFactoryPrice), rightCol, yPos, { align: 'right' });
 
-    yPos += 8;
-    doc.setTextColor(...textMuted);
-    doc.text('FOB', labelCol, yPos, { align: 'right' });
-    doc.setTextColor(...textDark);
-    doc.text(formatCurrency(fobPrice), rightCol, yPos, { align: 'right' });
+    // FOB - show only if tier is FOB or CIF
+    if (selectedTier === 'fob' || selectedTier === 'cif') {
+        yPos += 8;
+        doc.setTextColor(...textMuted);
+        doc.text('FOB', labelCol, yPos, { align: 'right' });
+        doc.setTextColor(...textDark);
+        doc.text(formatCurrency(fobPrice), rightCol, yPos, { align: 'right' });
+    }
 
+    // Profit
     yPos += 8;
     doc.setTextColor(...textMuted);
     doc.text(`Profit (${profitRate}%)`, labelCol, yPos, { align: 'right' });
     doc.setTextColor(...textDark);
-    doc.text(formatCurrency(breakdown.profit?.total || 0), rightCol, yPos, { align: 'right' });
+    doc.text(formatCurrency(profitAmount), rightCol, yPos, { align: 'right' });
 
     yPos += 12;
 
-    // TOTAL (bold, larger)
+    // TOTAL (bold, larger) - show selected tier's final price
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...textDark);
-    doc.text('Total (CIF)', labelCol, yPos, { align: 'right' });
+
+    // Display the final price based on selected tier
+    let finalPrice = cifPrice;
+    let totalTierLabel = 'Total (CIF)';
+    if (selectedTier === 'exFactory') {
+        finalPrice = exFactoryPrice;
+        totalTierLabel = 'Total (Ex-Factory)';
+    } else if (selectedTier === 'fob') {
+        finalPrice = fobPrice;
+        totalTierLabel = 'Total (FOB)';
+    }
+
+    doc.text(totalTierLabel, labelCol, yPos, { align: 'right' });
     doc.setFontSize(14);
-    doc.text(formatCurrency(cifPrice), rightCol, yPos, { align: 'right' });
+    doc.text(formatCurrency(finalPrice), rightCol, yPos, { align: 'right' });
 
     // ============================================
     // FOOTER - Payment Info & Company Info

@@ -38,8 +38,8 @@ async function fetchSettings() {
         const res = await fetch('/api/settings');
         if (res.ok) {
             settingsCache = await res.json();
-            // Cache expires after 30 seconds
-            setTimeout(() => { settingsCache = null; }, 30000);
+            // Cache expires after 5 seconds for faster updates
+            setTimeout(() => { settingsCache = null; }, 5000);
             return settingsCache;
         }
     } catch (error) {

@@ -266,6 +266,9 @@
       "code": "20FT",
       "max_weight_kg": 18000,
       "max_volume_cbm": 33,
+      "length_cm": 590,
+      "width_cm": 235,
+      "height_cm": 239,
       "is_active": true
     },
     {
@@ -274,6 +277,9 @@
       "code": "40FT",
       "max_weight_kg": 26000,
       "max_volume_cbm": 67,
+      "length_cm": 1200,
+      "width_cm": 235,
+      "height_cm": 239,
       "is_active": true
     }
   ],
