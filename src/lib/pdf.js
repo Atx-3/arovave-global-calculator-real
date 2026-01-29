@@ -409,14 +409,10 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
         doc.text(formatCurrency(fobPrice), rightCol, yPos, { align: 'right' });
     }
 
-    // Profit
-    yPos += 8;
-    doc.setTextColor(...textMuted);
-    doc.text(`Profit (${profitRate}%)`, labelCol, yPos, { align: 'right' });
-    doc.setTextColor(...textDark);
-    doc.text(formatCurrency(profitAmount), rightCol, yPos, { align: 'right' });
+    // Profit is merged into final price - not shown separately in bill
+    // The final tier prices (exFactory, fob, cif) already include profit
 
-    yPos += 12;
+    yPos += 4;
 
     // TOTAL (bold, larger) - show selected tier's final price
     doc.setFontSize(12);

@@ -1315,7 +1315,7 @@ export default function Home() {
                                 {/* Shipment Summary */}
                                 <div style={{
                                     display: 'grid',
-                                    gridTemplateColumns: 'repeat(4, 1fr)',
+                                    gridTemplateColumns: 'repeat(5, 1fr)',
                                     gap: 'var(--space-3)',
                                     padding: 'var(--space-4)',
                                     background: 'var(--bg-secondary)',
@@ -1326,6 +1326,14 @@ export default function Home() {
                                     <div style={{ textAlign: 'center' }}>
                                         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Container</div>
                                         <div style={{ fontWeight: 'var(--font-bold)', fontSize: 'var(--text-lg)' }}>{result.containerCount} × {result.containerCode}</div>
+                                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                            {result.containerCode === '20FT' ? '5.9m × 2.35m × 2.39m' : '12m × 2.35m × 2.39m'}
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Boxes</div>
+                                        <div style={{ fontWeight: 'var(--font-bold)', fontSize: 'var(--text-lg)' }}>{result.breakdown?.totalBoxes?.toLocaleString() || Math.ceil(result.quantity / (parseInt(unitsPerBox) || 1)).toLocaleString()}</div>
+                                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{boxesPerContainer} per container</div>
                                     </div>
                                     <div style={{ textAlign: 'center' }}>
                                         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Origin</div>
@@ -1596,12 +1604,17 @@ export default function Home() {
                                             </>
                                         )}
 
-                                        {/* Profit Row */}
+                                        {/* Profit Row - Applied to Entire Bill */}
                                         {result.pricing.breakdown.profitIncluded?.amount > 0 && (
-                                            <tr style={{ background: 'var(--primary-50)' }}>
-                                                <td>Profit Margin ({result.pricing.breakdown.profitIncluded.rate}%)</td>
-                                                <td><span className="badge badge-success">Included</span></td>
-                                                <td>{formatINR(result.pricing.breakdown.profitIncluded.amount)}</td>
+                                            <tr style={{ background: 'linear-gradient(135deg, var(--success-50), var(--primary-50))', fontWeight: 'var(--font-semibold)' }}>
+                                                <td>
+                                                    💰 Profit Margin ({result.pricing.breakdown.profitIncluded.rate}% on Total)
+                                                    <small style={{ display: 'block', color: 'var(--text-muted)', fontWeight: 'normal', fontSize: '10px' }}>
+                                                        Applied to entire bill
+                                                    </small>
+                                                </td>
+                                                <td><span className="badge badge-success">On Total</span></td>
+                                                <td style={{ color: 'var(--success)', fontWeight: 'var(--font-bold)' }}>+{formatINR(result.pricing.breakdown.profitIncluded.amount)}</td>
                                             </tr>
                                         )}
                                     </tbody>
