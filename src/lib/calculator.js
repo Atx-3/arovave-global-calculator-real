@@ -178,7 +178,17 @@ export function calculateExportPricing({
 
     // Custom charges (in INR)
     packagingCharges = 0,
-    extraCharges = 0
+    extraCharges = 0,
+
+    // NEW: Restructured cost breakdown fields
+    innerPackingTotal = 0,
+    outerPackingTotal = 0,
+    containerStuffingTotal = 0,
+    exportPackingTotal = 0,
+    indiaInsuranceRate = 0,
+    marineInsuranceType = 'ICC-C',
+    totalBoxes = 0,
+    paymentTerms = 0
 }) {
 
     // ============================================
@@ -436,13 +446,29 @@ export function calculateExportPricing({
                 total: roundToTwo(exFactoryProductINR),
                 chargeType: 'per_unit'
             },
-            packagingCharges: {
+            customCharges: {
                 label: 'Packaging & Extra Charges',
                 total: roundToTwo(customChargesTotal),
                 chargeType: 'flat'
             },
+            // NEW: EXW Packing breakdown
+            innerPacking: {
+                label: 'Inner Packing',
+                perUnit: roundToTwo(innerPackingTotal / (quantity || 1)),
+                quantity: quantity,
+                total: roundToTwo(innerPackingTotal),
+                chargeType: 'per_unit'
+            },
+            outerPacking: {
+                label: 'Outer Box Packing',
+                perBox: roundToTwo(outerPackingTotal / (totalBoxes || 1)),
+                boxes: totalBoxes,
+                total: roundToTwo(outerPackingTotal),
+                chargeType: 'per_box'
+            },
+            totalBoxes: totalBoxes,
             localFreight: {
-                label: 'Local Freight',
+                label: 'Inland Transport',
                 perContainer: localFreightPerContainer,
                 containers: containerCount,
                 total: roundToTwo(localFreightTotal),
@@ -457,6 +483,32 @@ export function calculateExportPricing({
                 total: roundToTwo(portCosts.total),
                 chargeType: 'mixed'
             },
+            // NEW: FOB extra costs
+            containerStuffing: {
+                label: 'Container Stuffing',
+                perContainer: roundToTwo(containerStuffingTotal / (containerCount || 1)),
+                containers: containerCount,
+                total: roundToTwo(containerStuffingTotal),
+                chargeType: 'per_container'
+            },
+            exportPacking: {
+                label: 'Export Packing/Palletization',
+                perContainer: roundToTwo(exportPackingTotal / (containerCount || 1)),
+                containers: containerCount,
+                total: roundToTwo(exportPackingTotal),
+                chargeType: 'per_container'
+            },
+            indiaInsurance: {
+                label: 'Insurance (India Side)',
+                rate: indiaInsuranceRate,
+                total: 0, // Calculated if needed
+                chargeType: 'percentage'
+            },
+            paymentTerms: {
+                label: 'Payment Terms',
+                creditPercent: paymentTerms,
+                chargeType: 'info'
+            },
             misc: miscCosts,
             certifications: {
                 items: certBreakdown,
@@ -465,11 +517,12 @@ export function calculateExportPricing({
             ecgc: {
                 label: 'ECGC Premium',
                 rate: ecgcRate,
+                creditPercent: paymentTerms,
                 total: roundToTwo(ecgcAmount),
                 chargeType: 'percentage'
             },
             freight: {
-                label: 'International Freight',
+                label: 'Sea Freight',
                 perContainer: freightPerContainer,
                 containers: containerCount,
                 currency: freightCurrency,
@@ -484,6 +537,7 @@ export function calculateExportPricing({
             },
             insurance: {
                 label: 'Marine Insurance',
+                type: marineInsuranceType,
                 rate: insuranceRate,
                 total: roundToTwo(insuranceAmount),
                 chargeType: 'percentage'

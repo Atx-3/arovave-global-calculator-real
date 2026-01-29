@@ -65,7 +65,16 @@ export default function Home() {
 
     // Custom charges state
     const [customProfitRate, setCustomProfitRate] = useState(''); // User-defined profit margin %
-    const [packagingCharges, setPackagingCharges] = useState(''); // Packaging charges in INR
+    const [innerPackingCost, setInnerPackingCost] = useState(''); // Inner packing cost per unit (INR)
+    const [outerPackingCost, setOuterPackingCost] = useState(''); // Outer packing cost per box (INR)
+    const [unitsPerBox, setUnitsPerBox] = useState(''); // No. of units in outer box
+    const [boxDimensions, setBoxDimensions] = useState({ length: '', width: '', height: '' }); // Box dimensions (Optional)
+    const [paymentTerms, setPaymentTerms] = useState(''); // Cash/Credit %
+    const [containerStuffingCharge, setContainerStuffingCharge] = useState(''); // Per container (INR)
+    const [indiaInsuranceRate, setIndiaInsuranceRate] = useState(''); // India side insurance %
+    const [exportPackingCost, setExportPackingCost] = useState(''); // Export packing per container (INR)
+    const [marineInsuranceType, setMarineInsuranceType] = useState('ICC-C'); // ICC-A (0.6%), ICC-B (0.4%), ICC-C (0.2%)
+    const [packagingCharges, setPackagingCharges] = useState(''); // Packaging charges in INR (legacy - will merge with outerPackingCost)
     const [extraCharges, setExtraCharges] = useState([]); // Array of {name, amount} for extra charges
 
     // Container Calculator Modal State
@@ -311,13 +320,34 @@ export default function Home() {
             // Calculate total boxes needed
             const totalBoxesNeeded = boxWeightMain && parseFloat(boxWeightMain) > 0
                 ? Math.ceil(parseFloat(quantity) / parseFloat(boxWeightMain))
-                : Math.ceil(parseFloat(quantity) / parseFloat(boxesPerContainer));
+                : (unitsPerBox && parseFloat(unitsPerBox) > 0
+                    ? Math.ceil(parseFloat(quantity) / parseFloat(unitsPerBox))
+                    : Math.ceil(parseFloat(quantity) / parseFloat(boxesPerContainer)));
 
-            // Calculate packaging per box (packaging charge × total boxes)
-            const totalPackagingCharges = (parseFloat(packagingCharges) || 0) * totalBoxesNeeded;
+            // NEW: Inner Packing = per unit × total quantity
+            const totalInnerPacking = (parseFloat(innerPackingCost) || 0) * parseFloat(quantity);
+
+            // NEW: Outer Packing = per box × total boxes
+            const totalOuterPacking = (parseFloat(outerPackingCost) || 0) * totalBoxesNeeded;
+
+            // Total EXW Packing Charges (Inner + Outer)
+            const totalPackagingCharges = totalInnerPacking + totalOuterPacking;
 
             // Calculate extra charges only (without packaging - avoid double count)
             const totalExtraChargesOnly = extraCharges.reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
+
+            // NEW: Container Stuffing (per container)
+            const totalContainerStuffing = (parseFloat(containerStuffingCharge) || 0) * containerCount;
+
+            // NEW: Export Packing/Palletization (per container)
+            const totalExportPacking = (parseFloat(exportPackingCost) || 0) * containerCount;
+
+            // NEW: India Insurance Rate
+            const effectiveIndiaInsuranceRate = parseFloat(indiaInsuranceRate) || 0;
+
+            // NEW: Marine Insurance Rate based on ICC type
+            const marineInsuranceRates = { 'ICC-C': 0.2, 'ICC-B': 0.4, 'ICC-A': 0.6 };
+            const effectiveMarineInsuranceRate = marineInsuranceRates[marineInsuranceType] || 0.2;
 
             // Use custom profit rate if provided (even if 0), otherwise use settings
             const effectiveProfitRate = customProfitRate !== '' && !isNaN(parseFloat(customProfitRate))
@@ -343,14 +373,23 @@ export default function Home() {
                 exchangeRate: currencyData?.exchange_rate_to_inr || 83.50,
                 bankMargin: currencyData?.bank_margin || 0.50,
                 ecgcRate: country?.ecgc_rate_percent || 0.50,
-                insuranceRate: parseFloat(settings.insurance_rate) || 0.50,
+                insuranceRate: effectiveMarineInsuranceRate, // Use ICC-based marine insurance
                 minInsurance: parseFloat(settings.min_insurance) || 5000,
                 bankChargeRate: parseFloat(settings.bank_charge_rate) || 0.25,
                 profitRate: effectiveProfitRate,
                 profitType: settings.profit_type || 'percentage',
                 selectedTier: selectedTier,
-                packagingCharges: totalPackagingCharges, // Total = boxes × rate (in INR)
-                extraCharges: totalExtraChargesOnly // Only extra charges, no packaging
+                packagingCharges: totalPackagingCharges, // Total = Inner + Outer Packing (in INR)
+                extraCharges: totalExtraChargesOnly + totalContainerStuffing + totalExportPacking, // FOB extras
+                // NEW fields for breakdown display
+                innerPackingTotal: totalInnerPacking,
+                outerPackingTotal: totalOuterPacking,
+                containerStuffingTotal: totalContainerStuffing,
+                exportPackingTotal: totalExportPacking,
+                indiaInsuranceRate: effectiveIndiaInsuranceRate,
+                marineInsuranceType: marineInsuranceType,
+                totalBoxes: totalBoxesNeeded,
+                paymentTerms: parseFloat(paymentTerms) || 0
             });
 
             setResult({
@@ -689,7 +728,7 @@ export default function Home() {
                             </div>
                         )}
 
-                        {/* Pricing Tier Selection - FIRST THING TO SELECT */}
+                        {/* Pricing Tier Selection */}
                         <div className="form-group" style={{
                             background: 'linear-gradient(135deg, var(--primary-50) 0%, var(--bg-secondary) 100%)',
                             borderRadius: 'var(--radius-lg)',
@@ -707,7 +746,7 @@ export default function Home() {
                                     onClick={() => { setSelectedTier('exFactory'); setResult(null); }}
                                     style={{ flex: 1, minWidth: '100px' }}
                                 >
-                                    Ex Factory
+                                    EXW
                                 </button>
                                 <button
                                     type="button"
@@ -726,325 +765,111 @@ export default function Home() {
                                     CIF
                                 </button>
                             </div>
-                            <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)', display: 'block' }}>
-                                {selectedTier === 'exFactory' && '🏭 Factory gate price with profit included'}
-                                {selectedTier === 'fob' && '🚢 Free on Board (includes local freight, port charges) with profit'}
-                                {selectedTier === 'cif' && '🌍 Cost Insurance Freight (full export price) with profit'}
-                            </small>
                         </div>
 
-                        {/* Product Selection */}
-                        <div className="form-group">
-                            <label className="form-label">Product *</label>
-                            <select
-                                className="form-select"
-                                value={selectedProduct?.id || ''}
-                                onChange={handleProductChange}
-                            >
-                                <option value="">Select a product</option>
-                                {products.map(product => (
-                                    <option key={product.id} value={product.id}>
-                                        {product.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Product Info */}
-                        {selectedProduct && (
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-                                gap: 'var(--space-3)',
-                                padding: 'var(--space-4)',
-                                background: 'var(--bg-glass)',
-                                borderRadius: 'var(--radius-lg)',
-                                marginBottom: 'var(--space-5)'
-                            }}>
-                                <div>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>HSN Code</span>
-                                    <div style={{ fontWeight: 'var(--font-semibold)' }}>{selectedProduct.hsn_code}</div>
-                                </div>
-                                <div>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>Unit</span>
-                                    <div style={{ fontWeight: 'var(--font-semibold)' }}>{selectedProduct.unit}</div>
-                                </div>
-                                <div>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>Base Price</span>
-                                    <div style={{ fontWeight: 'var(--font-semibold)', color: 'var(--primary-400)' }}>
-                                        {formatUSD(selectedProduct.base_price_usd)}/{selectedProduct.unit}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Container Type Selection */}
-                        <div className="form-group">
-                            <label className="form-label">Container Type *</label>
-                            <select
-                                className="form-select"
-                                value={selectedContainerType?.id || ''}
-                                onChange={handleContainerTypeChange}
-                            >
-                                {containerTypes.map(ct => (
-                                    <option key={ct.id} value={ct.id}>
-                                        {ct.name} ({ct.code})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Quantity and Qty per Container - Side by Side */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
-                            <div className="form-group">
-                                <label className="form-label">
-                                    Total Quantity ({selectedProduct?.unit || 'Units'}) *
-                                </label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    placeholder="e.g., 50000"
-                                    value={quantity}
-                                    onChange={(e) => setQuantity(e.target.value)}
-                                    min="1"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Boxes per Container */}
-                        <div className="form-group">
-                            <label className="form-label">
-                                Boxes per Container *
-                            </label>
-                            <input
-                                type="number"
-                                className="form-input"
-                                placeholder="e.g., 66"
-                                value={boxesPerContainer}
-                                onChange={(e) => setBoxesPerContainer(e.target.value)}
-                                min="1"
-                            />
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--space-2)' }}>
-                                <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-                                    How many boxes fit in {selectedContainerType?.code || 'container'}
-                                </small>
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowCalcModal(true); setCalcResult(null); setCalcError(''); }}
-                                    className="btn btn-secondary btn-sm"
-                                    style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-1) var(--space-2)' }}
-                                >
-                                    Calculate
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Container Count Display */}
-                        {containerCount > 0 && (
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 'var(--space-4)',
-                                padding: 'var(--space-4)',
-                                background: 'var(--bg-secondary)',
-                                border: '1px solid var(--gray-300)',
-                                borderRadius: 'var(--radius-lg)',
-                                marginBottom: 'var(--space-5)'
-                            }}>
-                                <div>
-                                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-bold)' }}>
-                                        {containerCount} Container{containerCount > 1 ? 's' : ''} Required
-                                    </div>
-                                    <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-                                        {containerCount} × {selectedContainerType?.code} ({formatNumber(quantity)} {selectedProduct?.unit || 'units'} total)
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Manufacturing Location */}
-                        <div className="form-group">
-                            <label className="form-label">Manufacturing Location *</label>
-                            <select
-                                className="form-select"
-                                value={selectedLocation}
-                                onChange={(e) => { setSelectedLocation(e.target.value); setResult(null); }}
-                            >
-                                <option value="">Select location</option>
-                                {locations.map(loc => (
-                                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* FOB/CIF Fields: Port of Loading Section */}
-                        {(selectedTier === 'fob' || selectedTier === 'cif') && (
-                            <>
-                                {/* Factory Pincode for Distance */}
-                                <div className="form-group">
-                                    <label className="form-label">Factory Pincode (for distance)</label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="e.g., 110001"
-                                        value={factoryPincode}
-                                        onChange={(e) => {
-                                            const pin = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                            setFactoryPincode(pin);
-                                            setDistanceInfo(null);
-                                            // Auto-calculate distance when 6 digits entered and port selected
-                                            if (pin.length >= 3 && selectedPort) {
-                                                const port = ports.find(p => p.id == selectedPort);
-                                                if (port) {
-                                                    const result = calculateDistanceFromPincodeToPort(pin, port.code);
-                                                    if (!result.error) {
-                                                        setDistanceInfo(result);
-                                                        setDistanceKm(result.distance.toString());
-                                                    }
-                                                }
-                                            }
-                                        }}
-                                        maxLength={6}
-                                    />
-                                    <small style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-                                        Enter 6-digit pincode to auto-calculate distance
-                                    </small>
-                                </div>
-
-                                {/* Port of Loading */}
-                                <div className="form-group">
-                                    <label className="form-label">Port of Loading (India) *</label>
-                                    <select
-                                        className="form-select"
-                                        value={selectedPort}
-                                        onChange={(e) => {
-                                            setSelectedPort(e.target.value);
-                                            setResult(null);
-                                            // Auto-calculate distance when port changes
-                                            if (factoryPincode.length >= 3 && e.target.value) {
-                                                const port = ports.find(p => p.id == e.target.value);
-                                                if (port) {
-                                                    const result = calculateDistanceFromPincodeToPort(factoryPincode, port.code);
-                                                    if (!result.error) {
-                                                        setDistanceInfo(result);
-                                                        setDistanceKm(result.distance.toString());
-                                                    }
-                                                }
-                                            }
-                                        }}
-                                    >
-                                        <option value="">Select port</option>
-                                        {ports.map(port => (
-                                            <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Distance Display & Input */}
-                                <div className="form-group">
-                                    <label className="form-label">Distance (km)</label>
-                                    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            placeholder="Enter or auto-calculated"
-                                            value={distanceKm}
-                                            onChange={(e) => setDistanceKm(e.target.value)}
-                                            min="0"
-                                            style={{ flex: 1 }}
-                                        />
-                                        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>km</span>
-                                    </div>
-                                    {distanceInfo && (
-                                        <div style={{
-                                            marginTop: 'var(--space-2)',
-                                            padding: 'var(--space-2)',
-                                            background: 'var(--bg-secondary)',
-                                            borderRadius: 'var(--radius-sm)',
-                                            fontSize: 'var(--text-xs)',
-                                            color: 'var(--text-secondary)'
-                                        }}>
-                                            📍 {distanceInfo.from} → {distanceInfo.to}: <strong>{distanceInfo.distance} km</strong> (approx road distance)
-                                        </div>
-                                    )}
-                                </div>
-                            </>
-                        )}
-
-                        {/* CIF Fields: Destination Section */}
-                        {selectedTier === 'cif' && (
-                            <>
-                                {/* Destination Country */}
-                                <div className="form-group">
-                                    <label className="form-label">Destination Country *</label>
-                                    <select
-                                        className="form-select"
-                                        value={selectedCountry}
-                                        onChange={(e) => { setSelectedCountry(e.target.value); setResult(null); }}
-                                    >
-                                        <option value="">Select country</option>
-                                        {countries.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Destination Port */}
-                                <div className="form-group">
-                                    <label className="form-label">Destination Port *</label>
-                                    <select
-                                        className="form-select"
-                                        value={selectedDestPort}
-                                        onChange={(e) => { setSelectedDestPort(e.target.value); setResult(null); }}
-                                        disabled={!selectedCountry}
-                                    >
-                                        <option value="">{!selectedCountry ? 'Select country first' : 'Select port'}</option>
-                                        {destinationPorts.map(port => (
-                                            <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </>
-                        )}
-
-                        {/* Certifications */}
-                        <div className="form-group">
-                            <label className="form-label">Certifications (Optional)</label>
-                            <div className="checkbox-group">
-                                {certifications.map(cert => (
-                                    <label
-                                        key={cert.id}
-                                        className={`checkbox-item ${selectedCerts.includes(cert.id) ? 'selected' : ''}`}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedCerts.includes(cert.id)}
-                                            onChange={() => toggleCertification(cert.id)}
-                                        />
-                                        <span>{cert.name}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Custom Charges Section */}
+                        {/* ============================================ */}
+                        {/* EXW SECTION - Product, Quantity, Packing */}
+                        {/* ============================================ */}
                         <div style={{
                             background: 'var(--bg-glass)',
                             borderRadius: 'var(--radius-lg)',
                             padding: 'var(--space-4)',
-                            marginBottom: 'var(--space-4)'
+                            marginBottom: 'var(--space-4)',
+                            border: '2px solid var(--primary-200)'
                         }}>
-                            <label className="form-label" style={{ marginBottom: 'var(--space-3)' }}>
-                                Custom Charges (Optional)
-                            </label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+                                <span style={{ background: 'var(--primary-500)', color: 'white', padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)' }}>EXW</span>
+                                <span className="form-label" style={{ margin: 0, fontWeight: 'var(--font-semibold)' }}>Product & Packing Details</span>
+                            </div>
 
-                            {/* Profit Margin and Packaging in a row */}
+                            {/* Product Row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                <div>
+                                    <label className="form-label">Product Name *</label>
+                                    <select
+                                        className="form-select"
+                                        value={selectedProduct?.id || ''}
+                                        onChange={handleProductChange}
+                                    >
+                                        <option value="">Select a product</option>
+                                        {products.map(product => (
+                                            <option key={product.id} value={product.id}>
+                                                {product.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="form-label">HS Code</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={selectedProduct?.hsn_code || '-'}
+                                        disabled
+                                        style={{ background: 'var(--bg-secondary)' }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Quantity & Price Row */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
                                 <div>
-                                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
-                                        Profit Margin (%)
-                                    </label>
+                                    <label className="form-label">Required Quantity ({selectedProduct?.unit || 'Units'}) *</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="e.g., 50000"
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(e.target.value)}
+                                        min="1"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="form-label">Price (USD/{selectedProduct?.unit || 'Unit'})</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder={selectedProduct?.base_price_usd || '0.00'}
+                                        value={selectedProduct?.base_price_usd || ''}
+                                        disabled
+                                        style={{ background: 'var(--bg-secondary)' }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Inner & Outer Packing Row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                <div>
+                                    <label className="form-label">Inner Packing Cost (₹/unit)</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="e.g., 2"
+                                        value={innerPackingCost}
+                                        onChange={(e) => { setInnerPackingCost(e.target.value); setResult(null); }}
+                                        min="0"
+                                        step="0.5"
+                                    />
+                                    <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Per unit (polybag, shrink wrap)</small>
+                                </div>
+                                <div>
+                                    <label className="form-label">Outer Packing Cost (₹/box)</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="e.g., 50"
+                                        value={outerPackingCost}
+                                        onChange={(e) => { setOuterPackingCost(e.target.value); setResult(null); }}
+                                        min="0"
+                                    />
+                                    <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Export carton per box</small>
+                                </div>
+                            </div>
+
+                            {/* Profit Margin */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                                <div>
+                                    <label className="form-label">Profit Margin (%)</label>
                                     <input
                                         type="number"
                                         className="form-input"
@@ -1053,80 +878,438 @@ export default function Home() {
                                         onChange={(e) => { setCustomProfitRate(e.target.value); setResult(null); }}
                                         min="0"
                                         step="0.5"
-                                        style={{ fontSize: 'var(--text-sm)' }}
                                     />
+                                    <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Applied on overall rate</small>
                                 </div>
                                 <div>
+                                    <label className="form-label">Certifications</label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
+                                        {certifications.map(cert => (
+                                            <label
+                                                key={cert.id}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                    padding: '4px 8px',
+                                                    background: selectedCerts.includes(cert.id) ? 'var(--primary-100)' : 'var(--bg-secondary)',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    fontSize: 'var(--text-xs)',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedCerts.includes(cert.id)}
+                                                    onChange={() => toggleCertification(cert.id)}
+                                                    style={{ width: '12px', height: '12px' }}
+                                                />
+                                                {cert.name}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ============================================ */}
+                        {/* FOB SECTION - Container, Shipping & Costs */}
+                        {/* ============================================ */}
+                        {(selectedTier === 'fob' || selectedTier === 'cif') && (
+                            <div style={{
+                                background: 'var(--bg-glass)',
+                                borderRadius: 'var(--radius-lg)',
+                                padding: 'var(--space-4)',
+                                marginBottom: 'var(--space-4)',
+                                border: '2px solid var(--warning)'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+                                    <span style={{ background: 'var(--warning)', color: 'var(--black)', padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)' }}>FOB</span>
+                                    <span className="form-label" style={{ margin: 0, fontWeight: 'var(--font-semibold)' }}>Container & Shipping Details</span>
+                                </div>
+
+                                {/* Container & Location Row */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                    <div>
+                                        <label className="form-label">Container Type *</label>
+                                        <select
+                                            className="form-select"
+                                            value={selectedContainerType?.id || ''}
+                                            onChange={handleContainerTypeChange}
+                                        >
+                                            {containerTypes.map(ct => (
+                                                <option key={ct.id} value={ct.id}>
+                                                    {ct.name} ({ct.code})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="form-label">Manufacturing Location *</label>
+                                        <select
+                                            className="form-select"
+                                            value={selectedLocation}
+                                            onChange={(e) => { setSelectedLocation(e.target.value); setResult(null); }}
+                                        >
+                                            <option value="">Select location</option>
+                                            {locations.map(loc => (
+                                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Boxes & Port Row */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                    <div>
+                                        <label className="form-label">Boxes per Container *</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="e.g., 66"
+                                            value={boxesPerContainer}
+                                            onChange={(e) => setBoxesPerContainer(e.target.value)}
+                                            min="1"
+                                        />
+                                        <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                                            How many boxes fit in {selectedContainerType?.code || 'container'}
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <label className="form-label">Port of Loading *</label>
+                                        <select
+                                            className="form-select"
+                                            value={selectedPort}
+                                            onChange={(e) => {
+                                                setSelectedPort(e.target.value);
+                                                setResult(null);
+                                                if (factoryPincode.length >= 3 && e.target.value) {
+                                                    const port = ports.find(p => p.id == e.target.value);
+                                                    if (port) {
+                                                        const result = calculateDistanceFromPincodeToPort(factoryPincode, port.code);
+                                                        if (!result.error) {
+                                                            setDistanceInfo(result);
+                                                            setDistanceKm(result.distance.toString());
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <option value="">Select port</option>
+                                            {ports.map(port => (
+                                                <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Factory Pincode & Distance Row */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                    <div>
+                                        <label className="form-label">Factory Pincode</label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="e.g., 110001"
+                                            value={factoryPincode}
+                                            onChange={(e) => {
+                                                const pin = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                                setFactoryPincode(pin);
+                                                setDistanceInfo(null);
+                                                if (pin.length >= 3 && selectedPort) {
+                                                    const port = ports.find(p => p.id == selectedPort);
+                                                    if (port) {
+                                                        const result = calculateDistanceFromPincodeToPort(pin, port.code);
+                                                        if (!result.error) {
+                                                            setDistanceInfo(result);
+                                                            setDistanceKm(result.distance.toString());
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                            maxLength={6}
+                                        />
+                                        <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>For auto distance calculation</small>
+                                    </div>
+                                    <div>
+                                        <label className="form-label">Distance (km)</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="Enter or auto-calculated"
+                                            value={distanceKm}
+                                            onChange={(e) => setDistanceKm(e.target.value)}
+                                            min="0"
+                                        />
+                                        {distanceInfo && (
+                                            <small style={{ color: 'var(--success)', fontSize: '10px' }}>
+                                                📍 {distanceInfo.from} → {distanceInfo.to}
+                                            </small>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Container Count Display */}
+                                {containerCount > 0 && (
+                                    <div style={{
+                                        background: 'var(--bg-secondary)',
+                                        border: '1px solid var(--gray-300)',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: 'var(--space-3)',
+                                        marginBottom: 'var(--space-3)',
+                                        textAlign: 'center'
+                                    }}>
+                                        <div style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-bold)' }}>
+                                            {containerCount} Container{containerCount > 1 ? 's' : ''} Required
+                                        </div>
+                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+                                            {containerCount} × {selectedContainerType?.code} ({formatNumber(quantity)} {selectedProduct?.unit || 'units'})
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Box & Payment Details */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                    <div>
+                                        <label className="form-label">Units per Outer Box</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="e.g., 12"
+                                            value={unitsPerBox}
+                                            onChange={(e) => { setUnitsPerBox(e.target.value); setResult(null); }}
+                                            min="1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="form-label">Payment Terms (Credit %)</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="e.g., 30"
+                                            value={paymentTerms}
+                                            onChange={(e) => { setPaymentTerms(e.target.value); setResult(null); }}
+                                            min="0"
+                                            max="100"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* FOB Costs Grid */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                    <div>
+                                        <label className="form-label">Container Stuffing (₹/container)</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="e.g., 5000"
+                                            value={containerStuffingCharge}
+                                            onChange={(e) => { setContainerStuffingCharge(e.target.value); setResult(null); }}
+                                            min="0"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="form-label">India Insurance (%)</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="e.g., 0.1"
+                                            value={indiaInsuranceRate}
+                                            onChange={(e) => { setIndiaInsuranceRate(e.target.value); setResult(null); }}
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div style={{ marginBottom: 'var(--space-3)' }}>
+                                    <label className="form-label">Export Packing/Palletization (₹/container)</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="e.g., 3000"
+                                        value={exportPackingCost}
+                                        onChange={(e) => { setExportPackingCost(e.target.value); setResult(null); }}
+                                        min="0"
+                                    />
+                                    <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Palletization cost per container (optional)</small>
+                                </div>
+
+                                {/* Extra Charges */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                    <div>
+                                        <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
+                                            Units per Outer Box
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="e.g., 12"
+                                            value={unitsPerBox}
+                                            onChange={(e) => { setUnitsPerBox(e.target.value); setResult(null); }}
+                                            min="1"
+                                            style={{ fontSize: 'var(--text-sm)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
+                                            Payment Terms (Credit %)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="e.g., 30"
+                                            value={paymentTerms}
+                                            onChange={(e) => { setPaymentTerms(e.target.value); setResult(null); }}
+                                            min="0"
+                                            max="100"
+                                            style={{ fontSize: 'var(--text-sm)' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* FOB Costs Grid */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                    <div>
+                                        <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
+                                            Container Stuffing (₹/container)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="e.g., 5000"
+                                            value={containerStuffingCharge}
+                                            onChange={(e) => { setContainerStuffingCharge(e.target.value); setResult(null); }}
+                                            min="0"
+                                            style={{ fontSize: 'var(--text-sm)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
+                                            India Insurance (%)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="e.g., 0.1"
+                                            value={indiaInsuranceRate}
+                                            onChange={(e) => { setIndiaInsuranceRate(e.target.value); setResult(null); }}
+                                            min="0"
+                                            step="0.01"
+                                            style={{ fontSize: 'var(--text-sm)' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
                                     <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
-                                        Packaging per Box (₹)
+                                        Export Packing/Palletization (₹/container)
                                     </label>
                                     <input
                                         type="number"
                                         className="form-input"
-                                        placeholder="e.g., 50"
-                                        value={packagingCharges}
-                                        onChange={(e) => { setPackagingCharges(e.target.value); setResult(null); }}
+                                        placeholder="e.g., 3000"
+                                        value={exportPackingCost}
+                                        onChange={(e) => { setExportPackingCost(e.target.value); setResult(null); }}
                                         min="0"
                                         style={{ fontSize: 'var(--text-sm)' }}
                                     />
+                                    <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Palletization cost per container (optional)</small>
+                                </div>
+
+                                {/* Extra Charges */}
+                                {extraCharges.length > 0 && (
+                                    <div style={{ marginTop: 'var(--space-3)' }}>
+                                        <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', display: 'block' }}>
+                                            Extra Charges
+                                        </label>
+                                        {extraCharges.map((charge, index) => (
+                                            <div key={index} style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', alignItems: 'center' }}>
+                                                <input
+                                                    type="text"
+                                                    className="form-input"
+                                                    placeholder="Name (e.g., Fumigation)"
+                                                    value={charge.name}
+                                                    onChange={(e) => updateExtraCharge(index, 'name', e.target.value)}
+                                                    style={{ flex: 2, fontSize: 'var(--text-sm)' }}
+                                                />
+                                                <input
+                                                    type="number"
+                                                    className="form-input"
+                                                    placeholder="₹"
+                                                    value={charge.amount}
+                                                    onChange={(e) => updateExtraCharge(index, 'amount', e.target.value)}
+                                                    min="0"
+                                                    style={{ flex: 1, fontSize: 'var(--text-sm)' }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeExtraCharge(index)}
+                                                    style={{
+                                                        background: 'var(--error)',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        padding: 'var(--space-2)',
+                                                        cursor: 'pointer',
+                                                        fontSize: 'var(--text-sm)'
+                                                    }}
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Add Extra Charge Button */}
+                                <button
+                                    type="button"
+                                    onClick={addExtraCharge}
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ width: '100%', fontSize: 'var(--text-sm)', marginTop: 'var(--space-3)' }}
+                                >
+                                    + Add Extra Charge
+                                </button>
+                            </div>
+                        )}
+
+                        {/* ============================================ */}
+                        {/* CIF SECTION - Marine Insurance */}
+                        {/* ============================================ */}
+                        {selectedTier === 'cif' && (
+                            <div style={{
+                                background: 'var(--bg-glass)',
+                                borderRadius: 'var(--radius-lg)',
+                                padding: 'var(--space-4)',
+                                marginBottom: 'var(--space-4)',
+                                border: '2px solid var(--success)'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                                    <span style={{ background: 'var(--success)', color: 'white', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)' }}>CIF</span>
+                                    <span className="form-label" style={{ margin: 0 }}>International Insurance</span>
+                                </div>
+
+                                <div>
+                                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
+                                        Marine Insurance Type
+                                    </label>
+                                    <select
+                                        className="form-select"
+                                        value={marineInsuranceType}
+                                        onChange={(e) => { setMarineInsuranceType(e.target.value); setResult(null); }}
+                                        style={{ fontSize: 'var(--text-sm)' }}
+                                    >
+                                        <option value="ICC-C">ICC-C @ 0.2% (Basic)</option>
+                                        <option value="ICC-B">ICC-B @ 0.4% (Medium)</option>
+                                        <option value="ICC-A">ICC-A @ 0.6% (Full Coverage)</option>
+                                    </select>
+                                    <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                                        ICC-A covers all risks, ICC-B medium coverage, ICC-C basic coverage
+                                    </small>
                                 </div>
                             </div>
-
-                            {/* Extra Charges */}
-                            {extraCharges.length > 0 && (
-                                <div style={{ marginBottom: 'var(--space-3)' }}>
-                                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', display: 'block' }}>
-                                        Extra Charges
-                                    </label>
-                                    {extraCharges.map((charge, index) => (
-                                        <div key={index} style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', alignItems: 'center' }}>
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                placeholder="Name (e.g., Fumigation)"
-                                                value={charge.name}
-                                                onChange={(e) => updateExtraCharge(index, 'name', e.target.value)}
-                                                style={{ flex: 2, fontSize: 'var(--text-sm)' }}
-                                            />
-                                            <input
-                                                type="number"
-                                                className="form-input"
-                                                placeholder="₹"
-                                                value={charge.amount}
-                                                onChange={(e) => updateExtraCharge(index, 'amount', e.target.value)}
-                                                min="0"
-                                                style={{ flex: 1, fontSize: 'var(--text-sm)' }}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeExtraCharge(index)}
-                                                style={{
-                                                    background: 'var(--error)',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    padding: 'var(--space-2)',
-                                                    cursor: 'pointer',
-                                                    fontSize: 'var(--text-sm)'
-                                                }}
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Add Extra Charge Button */}
-                            <button
-                                type="button"
-                                onClick={addExtraCharge}
-                                className="btn btn-secondary btn-sm"
-                                style={{ width: '100%', fontSize: 'var(--text-sm)' }}
-                            >
-                                + Add Extra Charge
-                            </button>
-                        </div>
+                        )}
 
                         {/* Calculate Button */}
                         <button
@@ -1279,110 +1462,158 @@ export default function Home() {
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        {/* ============= EXW SECTION ============= */}
                                         {/* Product Base */}
+                                        <tr style={{ background: 'var(--primary-50)' }}>
+                                            <td colSpan="3" style={{ fontWeight: 'var(--font-semibold)', color: 'var(--primary-600)' }}>
+                                                📦 EXW Costs
+                                            </td>
+                                        </tr>
                                         <tr>
                                             <td>Product ({formatNumber(result.quantity)} × {formatUSD(result.pricing.breakdown.productBase.perUnit)})</td>
                                             <td><span className="badge badge-info">Per Unit</span></td>
                                             <td>{formatINR(result.pricing.breakdown.productBase.total)}</td>
                                         </tr>
 
-                                        {/* Packaging & Extra Charges */}
-                                        {result.pricing.breakdown.packagingCharges && result.pricing.breakdown.packagingCharges.total > 0 && (
+                                        {/* Inner Packing */}
+                                        {result.pricing.breakdown.innerPacking?.total > 0 && (
                                             <tr>
-                                                <td>Packaging & Extra Charges</td>
-                                                <td><span className="badge badge-info">Per Box</span></td>
-                                                <td>{formatINR(result.pricing.breakdown.packagingCharges.total)}</td>
+                                                <td>Inner Packing ({formatNumber(result.quantity)} × ₹{result.pricing.breakdown.innerPacking.perUnit}/unit)</td>
+                                                <td><span className="badge badge-info">Per Unit</span></td>
+                                                <td>{formatINR(result.pricing.breakdown.innerPacking.total)}</td>
                                             </tr>
                                         )}
 
-                                        {/* Local Freight - FOB and CIF only */}
-                                        {(selectedTier === 'fob' || selectedTier === 'cif') && (
+                                        {/* Outer Packing */}
+                                        {result.pricing.breakdown.outerPacking?.total > 0 && (
                                             <tr>
-                                                <td>Local Freight ({result.containerCount} × {formatINR(result.pricing.breakdown.localFreight.perContainer)})</td>
-                                                <td><span className="badge badge-warning">Per Container</span></td>
-                                                <td>{formatINR(result.pricing.breakdown.localFreight.total)}</td>
+                                                <td>Outer Box Packing ({result.pricing.breakdown.totalBoxes} boxes × ₹{result.pricing.breakdown.outerPacking.perBox}/box)</td>
+                                                <td><span className="badge badge-warning">Per Box</span></td>
+                                                <td>{formatINR(result.pricing.breakdown.outerPacking.total)}</td>
                                             </tr>
                                         )}
 
-                                        {/* Handling - FOB and CIF only */}
-                                        {(selectedTier === 'fob' || selectedTier === 'cif') && result.pricing.breakdown.handling.breakdown.map((item, idx) => (
-                                            <tr key={`handling-${idx}`}>
-                                                <td>{item.name} {item.chargeType === 'per_container' ? `(${item.quantity}×)` : ''}</td>
-                                                <td>
-                                                    <span className={`badge ${item.chargeType === 'per_container' ? 'badge-warning' : 'badge-info'}`}>
-                                                        {item.chargeType === 'per_container' ? 'Per Container' : 'Per Shipment'}
-                                                    </span>
-                                                </td>
-                                                <td>{formatINR(item.total)}</td>
+                                        {/* EXW Subtotal */}
+                                        {selectedTier === 'exFactory' ? (
+                                            <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>
+                                                <td colSpan="2">EX-FACTORY Total ({result.pricing.breakdown.totalBoxes} boxes)</td>
+                                                <td>{formatINR(result.pricing.exFactory.inr)}</td>
                                             </tr>
-                                        ))}
+                                        ) : (
+                                            <tr style={{ background: 'var(--bg-glass)', fontWeight: 'var(--font-semibold)' }}>
+                                                <td colSpan="2">EXW Subtotal ({result.pricing.breakdown.totalBoxes} boxes)</td>
+                                                <td>{formatINR(result.pricing.exFactory.baseInr)}</td>
+                                            </tr>
+                                        )}
 
-                                        {/* Port Charges - FOB and CIF only */}
+                                        {/* ============= FOB SECTION ============= */}
                                         {(selectedTier === 'fob' || selectedTier === 'cif') && (
                                             <>
+                                                <tr style={{ background: 'var(--warning-50)' }}>
+                                                    <td colSpan="3" style={{ fontWeight: 'var(--font-semibold)', color: 'var(--warning-700)' }}>
+                                                        🚚 FOB Costs
+                                                    </td>
+                                                </tr>
+
+                                                {/* Inland Transport */}
                                                 <tr>
-                                                    <td>Port Handling ({result.containerCount}×)</td>
+                                                    <td>Inland Transport ({result.containerCount} × {formatINR(result.pricing.breakdown.localFreight.perContainer)})</td>
+                                                    <td><span className="badge badge-warning">Per Container</span></td>
+                                                    <td>{formatINR(result.pricing.breakdown.localFreight.total)}</td>
+                                                </tr>
+
+                                                {/* CHA & Customs */}
+                                                <tr>
+                                                    <td>CHA & Customs Processing</td>
+                                                    <td><span className="badge badge-info">Per Shipment</span></td>
+                                                    <td>{formatINR(result.pricing.breakdown.port.cha + result.pricing.breakdown.port.customs)}</td>
+                                                </tr>
+
+                                                {/* Port Handling */}
+                                                <tr>
+                                                    <td>Port & Terminal Handling ({result.containerCount}×)</td>
                                                     <td><span className="badge badge-warning">Per Container</span></td>
                                                     <td>{formatINR(result.pricing.breakdown.port.handling)}</td>
                                                 </tr>
-                                                <tr>
-                                                    <td>CHA Charges</td>
-                                                    <td><span className="badge badge-info">Per Shipment</span></td>
-                                                    <td>{formatINR(result.pricing.breakdown.port.cha)}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>Customs Clearance</td>
-                                                    <td><span className="badge badge-info">Per Shipment</span></td>
-                                                    <td>{formatINR(result.pricing.breakdown.port.customs)}</td>
-                                                </tr>
+
+                                                {/* Container Stuffing */}
+                                                {result.pricing.breakdown.containerStuffing?.total > 0 && (
+                                                    <tr>
+                                                        <td>Container Stuffing ({result.containerCount}×)</td>
+                                                        <td><span className="badge badge-warning">Per Container</span></td>
+                                                        <td>{formatINR(result.pricing.breakdown.containerStuffing.total)}</td>
+                                                    </tr>
+                                                )}
+
+                                                {/* Export Packing/Palletization */}
+                                                {result.pricing.breakdown.exportPacking?.total > 0 && (
+                                                    <tr>
+                                                        <td>Export Packing/Palletization ({result.containerCount}×)</td>
+                                                        <td><span className="badge badge-warning">Per Container</span></td>
+                                                        <td>{formatINR(result.pricing.breakdown.exportPacking.total)}</td>
+                                                    </tr>
+                                                )}
+
+                                                {/* Certifications */}
+                                                {result.pricing.breakdown.certifications.items.map((cert, idx) => (
+                                                    <tr key={`cert-${idx}`}>
+                                                        <td>{cert.name}</td>
+                                                        <td><span className="badge badge-info">Per Shipment</span></td>
+                                                        <td>{formatINR(cert.cost)}</td>
+                                                    </tr>
+                                                ))}
+
+                                                {/* FOB Subtotal/Total */}
+                                                {selectedTier === 'fob' ? (
+                                                    <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>
+                                                        <td colSpan="2">FOB Total</td>
+                                                        <td>{formatINR(result.pricing.fob.inr)}</td>
+                                                    </tr>
+                                                ) : (
+                                                    <tr style={{ background: 'var(--bg-glass)', fontWeight: 'var(--font-semibold)' }}>
+                                                        <td colSpan="2">FOB Subtotal</td>
+                                                        <td>{formatINR(result.pricing.fob.baseInr)}</td>
+                                                    </tr>
+                                                )}
                                             </>
                                         )}
 
-                                        {/* Certifications - FOB and CIF only */}
-                                        {(selectedTier === 'fob' || selectedTier === 'cif') && result.pricing.breakdown.certifications.items.map((cert, idx) => (
-                                            <tr key={`cert-${idx}`}>
-                                                <td>{cert.name}</td>
-                                                <td><span className="badge badge-info">Per Shipment</span></td>
-                                                <td>{formatINR(cert.cost)}</td>
-                                            </tr>
-                                        ))}
-
-                                        {/* FOB Subtotal - Only for CIF tier (shows FOB as intermediate subtotal) */}
-                                        {selectedTier === 'cif' && (
-                                            <tr style={{ background: 'var(--bg-glass)', fontWeight: 'var(--font-semibold)' }}>
-                                                <td colSpan="2">FOB Subtotal</td>
-                                                <td>{formatINR(result.pricing.fob.inr)}</td>
-                                            </tr>
-                                        )}
-
-                                        {/* CIF-only costs */}
+                                        {/* ============= CIF SECTION ============= */}
                                         {selectedTier === 'cif' && (
                                             <>
-                                                {/* ECGC */}
-                                                <tr>
-                                                    <td>ECGC Premium ({result.pricing.breakdown.ecgc.rate}%)</td>
-                                                    <td><span className="badge badge-info">Percentage</span></td>
-                                                    <td>{formatINR(result.pricing.breakdown.ecgc.total)}</td>
+                                                <tr style={{ background: 'var(--success-50)' }}>
+                                                    <td colSpan="3" style={{ fontWeight: 'var(--font-semibold)', color: 'var(--success-700)' }}>
+                                                        🚢 CIF Costs
+                                                    </td>
                                                 </tr>
 
-                                                {/* International Freight */}
+                                                {/* Sea Freight */}
                                                 <tr>
                                                     <td>
-                                                        Int'l Freight ({result.containerCount} × {formatUSD(result.pricing.breakdown.freight.perContainer)})
+                                                        Sea Freight ({result.containerCount} × {formatUSD(result.pricing.breakdown.freight.perContainer)})
                                                         <br />
                                                         <small style={{ color: 'var(--text-muted)' }}>
-                                                            + {result.pricing.breakdown.freight.gstRate}% GST = {formatINR(result.pricing.breakdown.freight.totalWithGST)}
+                                                            + {result.pricing.breakdown.freight.gstRate}% GST
                                                         </small>
                                                     </td>
                                                     <td><span className="badge badge-warning">Per Container</span></td>
                                                     <td>{formatINR(result.pricing.breakdown.freight.totalWithGST)}</td>
                                                 </tr>
 
-                                                {/* Insurance */}
+                                                {/* Marine Insurance with ICC Type */}
                                                 <tr>
-                                                    <td>Marine Insurance ({result.pricing.breakdown.insurance.rate}%)</td>
+                                                    <td>
+                                                        Marine Insurance ({result.pricing.breakdown.insurance.type} @ {result.pricing.breakdown.insurance.rate}%)
+                                                    </td>
                                                     <td><span className="badge badge-info">Percentage</span></td>
                                                     <td>{formatINR(result.pricing.breakdown.insurance.total)}</td>
+                                                </tr>
+
+                                                {/* ECGC */}
+                                                <tr>
+                                                    <td>ECGC Premium ({result.pricing.breakdown.ecgc.rate}%)</td>
+                                                    <td><span className="badge badge-info">Percentage</span></td>
+                                                    <td>{formatINR(result.pricing.breakdown.ecgc.total)}</td>
                                                 </tr>
 
                                                 {/* Bank Charges */}
@@ -1391,16 +1622,23 @@ export default function Home() {
                                                     <td><span className="badge badge-info">Percentage</span></td>
                                                     <td>{formatINR(result.pricing.breakdown.bankCharges.total)}</td>
                                                 </tr>
+
+                                                {/* CIF Total */}
+                                                <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>
+                                                    <td colSpan="2">CIF Total</td>
+                                                    <td>{formatINR(result.pricing.cif.inr)}</td>
+                                                </tr>
                                             </>
                                         )}
 
-
-
-                                        {/* Final Total for Selected Tier */}
-                                        <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>
-                                            <td colSpan="2">{selectedTier === 'exFactory' ? 'Ex-Factory' : selectedTier === 'fob' ? 'FOB' : 'CIF'} Total</td>
-                                            <td>{formatINR(result.pricing[selectedTier].inr)}</td>
-                                        </tr>
+                                        {/* Profit Row */}
+                                        {result.pricing.breakdown.profitIncluded?.amount > 0 && (
+                                            <tr style={{ background: 'var(--primary-50)' }}>
+                                                <td>Profit Margin ({result.pricing.breakdown.profitIncluded.rate}%)</td>
+                                                <td><span className="badge badge-success">Included</span></td>
+                                                <td>{formatINR(result.pricing.breakdown.profitIncluded.amount)}</td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
 
