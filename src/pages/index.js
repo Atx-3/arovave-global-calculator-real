@@ -959,48 +959,68 @@ export default function Home() {
                                     </div>
                                 </div>
 
-                                {/* Boxes & Port Row */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
-                                    <div>
-                                        <label className="form-label">Boxes per Container *</label>
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            placeholder="e.g., 66"
-                                            value={boxesPerContainer}
-                                            onChange={(e) => setBoxesPerContainer(e.target.value)}
-                                            min="1"
-                                        />
-                                        <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                                            How many boxes fit in {selectedContainerType?.code || 'container'}
-                                        </small>
-                                    </div>
-                                    <div>
-                                        <label className="form-label">Port of Loading *</label>
-                                        <select
-                                            className="form-select"
-                                            value={selectedPort}
-                                            onChange={(e) => {
-                                                setSelectedPort(e.target.value);
-                                                setResult(null);
-                                                if (factoryPincode.length >= 3 && e.target.value) {
-                                                    const port = ports.find(p => p.id == e.target.value);
-                                                    if (port) {
-                                                        const result = calculateDistanceFromPincodeToPort(factoryPincode, port.code);
-                                                        if (!result.error) {
-                                                            setDistanceInfo(result);
-                                                            setDistanceKm(result.distance.toString());
-                                                        }
+                                {/* Boxes per Container - Full Width with Calculate Button */}
+                                <div style={{ marginBottom: 'var(--space-3)' }}>
+                                    <label className="form-label">Boxes per Container *</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="e.g., 66"
+                                        value={boxesPerContainer}
+                                        onChange={(e) => setBoxesPerContainer(e.target.value)}
+                                        min="1"
+                                    />
+                                    <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                                        How many boxes fit in {selectedContainerType?.code || 'container'}
+                                    </small>
+
+                                    {/* Calculate Button */}
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        style={{ width: '100%', marginTop: 'var(--space-2)' }}
+                                        onClick={() => {
+                                            // Trigger recalculation of containers
+                                            if (boxesPerContainer && quantity && unitsPerBox) {
+                                                const totalBoxes = Math.ceil(quantity / (parseInt(unitsPerBox) || 1));
+                                                const containersNeeded = Math.ceil(totalBoxes / (parseInt(boxesPerContainer) || 1));
+                                                // Container count is already calculated reactively, but we can show feedback
+                                                alert(`📦 Total Boxes: ${totalBoxes}\n🚛 Containers Required: ${containersNeeded} × ${selectedContainerType?.code || 'Container'}`);
+                                            } else {
+                                                alert('Please fill in:\n• Required Quantity\n• Units per Box\n• Boxes per Container');
+                                            }
+                                        }}
+                                    >
+                                        📦 Calculate Boxes
+                                    </button>
+                                </div>
+
+                                {/* Port of Loading */}
+                                <div style={{ marginBottom: 'var(--space-3)' }}>
+                                    <label className="form-label">Port of Loading *</label>
+                                    <select
+                                        className="form-select"
+                                        value={selectedPort}
+                                        onChange={(e) => {
+                                            setSelectedPort(e.target.value);
+                                            setResult(null);
+                                            if (factoryPincode.length >= 3 && e.target.value) {
+                                                const port = ports.find(p => p.id == e.target.value);
+                                                if (port) {
+                                                    const result = calculateDistanceFromPincodeToPort(factoryPincode, port.code);
+                                                    if (!result.error) {
+                                                        setDistanceInfo(result);
+                                                        setDistanceKm(result.distance.toString());
                                                     }
                                                 }
-                                            }}
-                                        >
-                                            <option value="">Select port</option>
-                                            {ports.map(port => (
-                                                <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                            }
+                                        }}
+                                    >
+                                        <option value="">Select port</option>
+                                        {ports.map(port => (
+                                            <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 {/* Factory Pincode & Distance Row */}
