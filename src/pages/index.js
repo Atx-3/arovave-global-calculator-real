@@ -65,6 +65,7 @@ export default function Home() {
 
     // Custom charges state
     const [customProfitRate, setCustomProfitRate] = useState(''); // User-defined profit margin %
+    const [customProductPrice, setCustomProductPrice] = useState(''); // Temporary price override (USD)
     const [innerPackingCost, setInnerPackingCost] = useState(''); // Inner packing cost per unit (INR)
     const [outerPackingCost, setOuterPackingCost] = useState(''); // Outer packing cost per box (INR)
     const [unitsPerBox, setUnitsPerBox] = useState(''); // No. of units in outer box
@@ -225,6 +226,8 @@ export default function Home() {
         const productId = e.target.value;
         const product = products.find(p => p.id.toString() === productId);
         setSelectedProduct(product || null);
+        // Set the product's base price as default (user can modify)
+        setCustomProductPrice(product?.base_price_usd?.toString() || '');
         setResult(null);
     };
 
@@ -360,6 +363,7 @@ export default function Home() {
                 containerType: selectedContainerType,
                 qtyPerContainer: qtyPerContainer,
                 containerCount: containerCount, // Pass form's container count for consistency
+                customPrice: customProductPrice, // Temporary price override (if entered)
                 localFreightRate,
                 portHandlingPerContainer: port?.handling_per_container || 0,
                 chaCharges: port?.cha_charges || 0,
@@ -642,6 +646,7 @@ export default function Home() {
         setSelectedDestPort('');
         setSelectedCerts([]);
         setCustomProfitRate('');
+        setCustomProductPrice('');
         setPackagingCharges('');
         setExtraCharges([]);
         setResult(null);
@@ -830,10 +835,16 @@ export default function Home() {
                                         type="number"
                                         className="form-input"
                                         placeholder={selectedProduct?.base_price_usd || '0.00'}
-                                        value={selectedProduct?.base_price_usd || ''}
-                                        disabled
-                                        style={{ background: 'var(--bg-secondary)' }}
+                                        value={customProductPrice}
+                                        onChange={(e) => { setCustomProductPrice(e.target.value); setResult(null); }}
+                                        step="0.01"
+                                        min="0"
                                     />
+                                    {customProductPrice && parseFloat(customProductPrice) !== parseFloat(selectedProduct?.base_price_usd) && (
+                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)', marginTop: 'var(--space-1)' }}>
+                                            ⚠️ Custom price (Default: ${selectedProduct?.base_price_usd})
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

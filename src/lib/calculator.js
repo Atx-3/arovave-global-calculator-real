@@ -130,6 +130,7 @@ export function calculateExportPricing({
     containerType,
     qtyPerContainer,
     containerCount: providedContainerCount = null, // Optional: pass pre-calculated container count
+    customPrice = null, // Optional: temporary price override (USD)
 
     // Locations
     localFreightRate,  // Rate per container in INR
@@ -209,7 +210,10 @@ export function calculateExportPricing({
     // ============================================
     // STEP 3: EX-FACTORY COST (Product + Packaging)
     // ============================================
-    const basePrice = parseFloat(product.base_price_usd) || 0;
+    // Use custom price if provided, otherwise fall back to product's base price
+    const basePrice = customPrice !== null && customPrice !== '' && !isNaN(parseFloat(customPrice))
+        ? parseFloat(customPrice)
+        : (parseFloat(product.base_price_usd) || 0);
     const exFactoryProductUSD = basePrice * quantity;
     const exFactoryProductINR = convertToINR(exFactoryProductUSD, exchangeRate, 0);
     // Add packaging and extra charges to Ex-Factory
