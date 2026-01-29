@@ -1204,11 +1204,43 @@ export default function Home() {
                                 marginBottom: 'var(--space-4)',
                                 border: '2px solid var(--success)'
                             }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-                                    <span style={{ background: 'var(--success)', color: 'white', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)' }}>CIF</span>
-                                    <span className="form-label" style={{ margin: 0 }}>International Insurance</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+                                    <span style={{ background: 'var(--success)', color: 'white', padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)' }}>CIF</span>
+                                    <span className="form-label" style={{ margin: 0, fontWeight: 'var(--font-semibold)' }}>Destination & Insurance</span>
                                 </div>
 
+                                {/* Destination Row */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                    <div>
+                                        <label className="form-label">Destination Country *</label>
+                                        <select
+                                            className="form-select"
+                                            value={selectedCountry}
+                                            onChange={(e) => { setSelectedCountry(e.target.value); setResult(null); }}
+                                        >
+                                            <option value="">Select country</option>
+                                            {countries.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="form-label">Destination Port *</label>
+                                        <select
+                                            className="form-select"
+                                            value={selectedDestPort}
+                                            onChange={(e) => { setSelectedDestPort(e.target.value); setResult(null); }}
+                                            disabled={!selectedCountry}
+                                        >
+                                            <option value="">{!selectedCountry ? 'Select country first' : 'Select port'}</option>
+                                            {destinationPorts.map(port => (
+                                                <option key={port.id} value={port.id}>{port.name} ({port.code})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Marine Insurance */}
                                 <div>
                                     <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
                                         Marine Insurance Type
