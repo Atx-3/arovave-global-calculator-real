@@ -974,19 +974,15 @@ export default function Home() {
                                         How many boxes fit in {selectedContainerType?.code || 'container'}
                                     </small>
 
-                                    {/* Calculate Button */}
+                                    {/* Calculate Button - Opens Modal */}
                                     <button
                                         type="button"
                                         className="btn btn-secondary"
                                         style={{ width: '100%', marginTop: 'var(--space-2)' }}
                                         onClick={() => {
-                                            const perContainer = parseInt(boxesPerContainer) || 0;
-
-                                            if (perContainer > 0) {
-                                                alert(`✅ Container Capacity Set!\n\n📦 ${perContainer.toLocaleString()} boxes per ${selectedContainerType?.code || 'Container'}`);
-                                            } else {
-                                                alert('Please enter the number of boxes that fit in the container');
-                                            }
+                                            setCalcError('');
+                                            setCalcResult(null);
+                                            setShowCalcModal(true);
                                         }}
                                     >
                                         📦 Calculate
