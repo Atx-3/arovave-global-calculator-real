@@ -980,20 +980,16 @@ export default function Home() {
                                         className="btn btn-secondary"
                                         style={{ width: '100%', marginTop: 'var(--space-2)' }}
                                         onClick={() => {
-                                            const qty = parseInt(quantity) || 0;
-                                            const perBox = parseInt(unitsPerBox) || 0;
                                             const perContainer = parseInt(boxesPerContainer) || 0;
 
-                                            if (qty > 0 && perBox > 0 && perContainer > 0) {
-                                                const totalBoxes = Math.ceil(qty / perBox);
-                                                const containersNeeded = Math.ceil(totalBoxes / perContainer);
-                                                alert(`📦 Total Boxes: ${totalBoxes.toLocaleString()}\n🚛 Containers Required: ${containersNeeded} × ${selectedContainerType?.code || 'Container'}`);
+                                            if (perContainer > 0) {
+                                                alert(`✅ Container Capacity Set!\n\n📦 ${perContainer.toLocaleString()} boxes per ${selectedContainerType?.code || 'Container'}`);
                                             } else {
-                                                alert('Please fill in:\n• Required Quantity (EXW section)\n• Units per Outer Box (below)\n• Boxes per Container');
+                                                alert('Please enter the number of boxes that fit in the container');
                                             }
                                         }}
                                     >
-                                        📦 Calculate Boxes
+                                        📦 Calculate
                                     </button>
                                 </div>
 
