@@ -980,14 +980,16 @@ export default function Home() {
                                         className="btn btn-secondary"
                                         style={{ width: '100%', marginTop: 'var(--space-2)' }}
                                         onClick={() => {
-                                            // Trigger recalculation of containers
-                                            if (boxesPerContainer && quantity && unitsPerBox) {
-                                                const totalBoxes = Math.ceil(quantity / (parseInt(unitsPerBox) || 1));
-                                                const containersNeeded = Math.ceil(totalBoxes / (parseInt(boxesPerContainer) || 1));
-                                                // Container count is already calculated reactively, but we can show feedback
-                                                alert(`📦 Total Boxes: ${totalBoxes}\n🚛 Containers Required: ${containersNeeded} × ${selectedContainerType?.code || 'Container'}`);
+                                            const qty = parseInt(quantity) || 0;
+                                            const perBox = parseInt(unitsPerBox) || 0;
+                                            const perContainer = parseInt(boxesPerContainer) || 0;
+
+                                            if (qty > 0 && perBox > 0 && perContainer > 0) {
+                                                const totalBoxes = Math.ceil(qty / perBox);
+                                                const containersNeeded = Math.ceil(totalBoxes / perContainer);
+                                                alert(`📦 Total Boxes: ${totalBoxes.toLocaleString()}\n🚛 Containers Required: ${containersNeeded} × ${selectedContainerType?.code || 'Container'}`);
                                             } else {
-                                                alert('Please fill in:\n• Required Quantity\n• Units per Box\n• Boxes per Container');
+                                                alert('Please fill in:\n• Required Quantity (EXW section)\n• Units per Outer Box (below)\n• Boxes per Container');
                                             }
                                         }}
                                     >
