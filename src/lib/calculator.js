@@ -191,7 +191,9 @@ export function calculateExportPricing({
     exportPackingTotal = 0,
     indiaInsuranceRate = 0,
     marineInsuranceType = 'ICC-C',
+
     totalBoxes = 0,
+    totalUnits = 0, // NEW: Explicit unit count (if different from quantity)
     paymentTerms = 0
 }) {
 
@@ -463,8 +465,8 @@ export function calculateExportPricing({
             // NEW: EXW Packing breakdown
             innerPacking: {
                 label: 'Inner Packing',
-                perUnit: roundToTwo(innerPackingTotal / (quantity || 1)),
-                quantity: quantity,
+                perUnit: roundToTwo(innerPackingTotal / (totalUnits && totalUnits > 0 ? totalUnits : (quantity || 1))),
+                quantity: totalUnits && totalUnits > 0 ? totalUnits : quantity,
                 total: roundToTwo(innerPackingTotal),
                 chargeType: 'per_unit'
             },

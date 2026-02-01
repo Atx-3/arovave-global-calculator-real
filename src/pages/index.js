@@ -42,7 +42,7 @@ export default function Home() {
     const [selectedContainerType, setSelectedContainerType] = useState(null);
     const [quantity, setQuantity] = useState('');
     const [boxesPerContainer, setBoxesPerContainer] = useState(''); // Number of boxes that fit in container
-    const [boxWeightMain, setBoxWeightMain] = useState(''); // Weight per box in KG
+
     const [selectedLocation, setSelectedLocation] = useState('');
     const [factoryPincode, setFactoryPincode] = useState(''); // Pincode for distance calculation
     const [selectedPort, setSelectedPort] = useState('');
@@ -85,7 +85,11 @@ export default function Home() {
 
     // Container Calculator Modal State
     const [showCalcModal, setShowCalcModal] = useState(false);
-    const [unitWeight, setUnitWeight] = useState(''); // NEW: Weight per unit
+    const [boxLength, setBoxLength] = useState('');
+    const [boxWidth, setBoxWidth] = useState('');
+    const [boxHeight, setBoxHeight] = useState('');
+    const [boxWeight, setBoxWeight] = useState('');
+
     const [calcResult, setCalcResult] = useState(null);
     const [calcError, setCalcError] = useState('');
 
@@ -493,6 +497,7 @@ export default function Home() {
                 indiaInsuranceRate: effectiveIndiaInsuranceRate,
                 marineInsuranceType: marineInsuranceType,
                 totalBoxes: totalBoxesNeeded,
+                totalUnits: totalUnits, // NEW: Pass calculated units
                 paymentTerms: parseFloat(paymentTerms) || 0
             });
 
@@ -1710,10 +1715,9 @@ export default function Home() {
                                             <td>{formatINR(result.pricing.breakdown.productBase.total)}</td>
                                         </tr>
 
-                                        {/* Inner Packing */}
                                         {result.pricing.breakdown.innerPacking?.total > 0 && (
                                             <tr>
-                                                <td>Inner Packing ({formatNumber(result.quantity)} × ₹{result.pricing.breakdown.innerPacking.perUnit}/unit)</td>
+                                                <td>Inner Packing ({formatNumber(result.pricing.breakdown.innerPacking.quantity)} × ₹{result.pricing.breakdown.innerPacking.perUnit}/unit)</td>
                                                 <td><span className="badge badge-info">Per Unit</span></td>
                                                 <td>{formatINR(result.pricing.breakdown.innerPacking.total)}</td>
                                             </tr>
