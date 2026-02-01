@@ -438,6 +438,12 @@ export default function SettingsPage() {
                                         <input className="form-input" type="number" step="0.01" value={generalSettings.bank_charge_rate || ''} onChange={(e) => handleSettingChange('bank_charge_rate', e.target.value)} />
                                     </div>
                                 </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">Container Stuffing Rate (₹/container)</label>
+                                        <input className="form-input" type="number" value={generalSettings.container_stuffing_rate || ''} onChange={(e) => handleSettingChange('container_stuffing_rate', e.target.value)} />
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>

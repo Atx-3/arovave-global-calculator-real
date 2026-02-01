@@ -152,6 +152,13 @@ export default function Home() {
             setCostHeads(costHeadsData || []);
             setSettings(settingsData || {});
 
+            // Set defaults from settings
+            if (settingsData) {
+                if (settingsData.container_stuffing_rate) {
+                    setContainerStuffingCharge(settingsData.container_stuffing_rate);
+                }
+            }
+
             // Set default container type
             if (containerTypesData?.length > 0) {
                 setSelectedContainerType(containerTypesData[0]);
