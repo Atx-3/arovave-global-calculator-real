@@ -269,12 +269,18 @@ export default function Home() {
 
     // Calculate rates
     const handleCalculate = async () => {
+        console.log('Starting calculation...', { selectedTier, selectedProduct, quantity, boxesPerContainer, selectedContainerType, selectedLocation, selectedPort, selectedCountry, selectedDestPort });
+
         // Base Validation (all tiers)
         if (!selectedProduct) return setError('Please select a product');
         if (!quantity || parseFloat(quantity) <= 0) return setError('Please enter a valid quantity');
-        if (!boxesPerContainer || parseFloat(boxesPerContainer) <= 0) return setError('Please enter boxes per container');
-        if (!selectedContainerType) return setError('Please select a container type');
-        if (!selectedLocation) return setError('Please select manufacturing location');
+
+        // Validation for FOB/CIF (Container & Location required)
+        if (selectedTier !== 'exFactory') {
+            if (!boxesPerContainer || parseFloat(boxesPerContainer) <= 0) return setError('Please enter boxes per container');
+            if (!selectedContainerType) return setError('Please select a container type');
+            if (!selectedLocation) return setError('Please select manufacturing location');
+        }
 
         // FOB/CIF tier needs port
         if ((selectedTier === 'fob' || selectedTier === 'cif') && !selectedPort) {
@@ -292,40 +298,71 @@ export default function Home() {
 
         try {
             // Get related data
+            // For EXW, location/port/country might be missing, which is fine.
             const location = locations.find(l => l.id.toString() === selectedLocation);
             const port = ports.find(p => p.id.toString() === selectedPort);
             const country = countries.find(c => c.id.toString() === selectedCountry);
             const destPort = destinationPorts.find(p => p.id.toString() === selectedDestPort);
             const selectedCertifications = certifications.filter(c => selectedCerts.includes(c.id));
 
-            // Get freight and local freight rates
-            const localFreightRate = await getLocalFreightRate(
-                selectedLocation,
-                selectedPort,
-                selectedContainerType.id
-            );
+            console.log('Master data found:', { location, port, country, destPort });
 
-            const freightData = await getFreightRate(
-                selectedPort,
-                selectedDestPort,
-                selectedContainerType.id
-            );
+            // Determine effective container type (use selected or default to first available for EXW)
+            const effectiveContainerType = selectedContainerType || (containerTypes.length > 0 ? containerTypes[0] : null);
+            if (!effectiveContainerType && selectedTier !== 'exFactory') {
+                throw new Error("No container type available");
+            }
+
+            // Get freight and local freight rates
+            let localFreightRate = 0;
+            // Only fetch local freight if a port is selected AND we have a valid container type
+            if (selectedPort && effectiveContainerType) {
+                console.log('Fetching local freight rate...');
+                localFreightRate = await getLocalFreightRate(
+                    selectedLocation,
+                    selectedPort,
+                    effectiveContainerType.id
+                );
+                console.log('Local freight rate:', localFreightRate);
+            } else {
+                console.log('Skipping local freight (no port/container selected)');
+            }
+
+            let freightData = null;
+            // Only fetch international freight for CIF
+            if (selectedTier === 'cif' && effectiveContainerType) {
+                console.log('Fetching international freight rate...');
+                freightData = await getFreightRate(
+                    selectedPort,
+                    selectedDestPort,
+                    effectiveContainerType.id
+                );
+                console.log('Freight data:', freightData);
+            } else {
+                console.log('Skipping international freight (not CIF)');
+            }
 
             const currencyData = await getCurrencySettings('USD');
+            console.log('Currency data:', currencyData);
 
             // Calculate
-            // If weight per box is set (from calculator modal), use: boxes × weight
-            // Otherwise, use boxesPerContainer directly (user enters qty per container)
+            // For EXW, boxesPerContainer might be missing. Default to something safe (e.g., 1000) or calculate from quantity if possible, 
+            // but effectively it won't matter for EXW final price since container costs are excluded.
+            // However, to avoid NaN, we set defaults.
+            const safeBoxesPerContainer = boxesPerContainer && parseFloat(boxesPerContainer) > 0
+                ? parseFloat(boxesPerContainer)
+                : 10000; // Arbitrary high number if missing
+
             const qtyPerContainer = boxWeightMain && parseFloat(boxWeightMain) > 0
-                ? parseFloat(boxesPerContainer) * parseFloat(boxWeightMain)
-                : parseFloat(boxesPerContainer);
+                ? safeBoxesPerContainer * parseFloat(boxWeightMain)
+                : safeBoxesPerContainer;
 
             // Calculate total boxes needed
             const totalBoxesNeeded = boxWeightMain && parseFloat(boxWeightMain) > 0
                 ? Math.ceil(parseFloat(quantity) / parseFloat(boxWeightMain))
                 : (unitsPerBox && parseFloat(unitsPerBox) > 0
                     ? Math.ceil(parseFloat(quantity) / parseFloat(unitsPerBox))
-                    : Math.ceil(parseFloat(quantity) / parseFloat(boxesPerContainer)));
+                    : Math.ceil(parseFloat(quantity) / safeBoxesPerContainer));
 
             // NEW: Inner Packing = per unit × total quantity
             const totalInnerPacking = (parseFloat(innerPackingCost) || 0) * parseFloat(quantity);
@@ -357,14 +394,21 @@ export default function Home() {
                 ? parseFloat(customProfitRate)
                 : parseFloat(settings.profit_rate) || 5.0;
 
+            console.log('Calling calculateExportPricing with:', {
+                localFreightRate,
+                freightRate: freightData?.rate_amount || 0,
+                selectedTier,
+                effectiveContainerType
+            });
+
             const pricing = calculateExportPricing({
                 product: selectedProduct,
                 customPriceUsd: parseFloat(customPrice) || selectedProduct?.base_price_usd || 0, // Use editable price
                 quantity: parseFloat(quantity),
-                containerType: selectedContainerType,
+                containerType: effectiveContainerType,
                 qtyPerContainer: qtyPerContainer,
-                containerCount: containerCount, // Pass form's container count for consistency
-                localFreightRate,
+                containerCount: containerCount, // Pass form's container count for consistency (might be 0 for EXW)
+                localFreightRate: localFreightRate || 0, // Ensure it's a number
                 portHandlingPerContainer: port?.handling_per_container || 0,
                 chaCharges: port?.cha_charges || 0,
                 customsClearance: port?.customs_per_shipment || 0,
@@ -396,25 +440,27 @@ export default function Home() {
                 paymentTerms: parseFloat(paymentTerms) || 0
             });
 
+            console.log('Calculation successful:', pricing);
+
             setResult({
                 pricing,
                 productName: selectedProduct.name,
                 hsnCode: selectedProduct.hsn_code,
                 unit: selectedProduct.unit,
                 quantity: parseFloat(quantity),
-                containerType: selectedContainerType.name,
-                containerCode: selectedContainerType.code,
-                containerCount: containerCount, // Use form's containerCount state for consistency
-                factoryLocation: location?.name,
-                loadingPort: port?.name,
-                country: country?.name,
-                destinationPort: destPort?.name,
+                containerType: effectiveContainerType?.name || 'N/A',
+                containerCode: effectiveContainerType?.code || 'N/A',
+                containerCount: containerCount, // Use form's containerCount state
+                factoryLocation: location?.name || 'N/A',
+                loadingPort: port?.name || 'N/A',
+                country: country?.name || 'N/A',
+                destinationPort: destPort?.name || 'N/A',
                 certifications: selectedCertifications.map(c => c.name),
                 selectedTier: selectedTier // Pass tier for PDF filtering
             });
         } catch (err) {
             console.error('Calculation error:', err);
-            setError('Error calculating prices. Please try again.');
+            setError(`Error calculating prices: ${err.message}. Check console for details.`);
         }
 
         setCalculating(false);
