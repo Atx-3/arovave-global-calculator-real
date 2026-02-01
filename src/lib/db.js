@@ -145,7 +145,19 @@ export async function getSettings() {
 // CURRENCY
 // ============================================
 export async function getCurrencySettings(code = 'USD') {
-    return CURRENCY_SETTINGS[code] || CURRENCY_SETTINGS.USD;
+    const settings = await fetchSettings();
+    const defaultCurrency = CURRENCY_SETTINGS[code] || CURRENCY_SETTINGS.USD;
+
+    // Override with dynamic settings if available
+    if (settings?.settings && code === 'USD') {
+        return {
+            ...defaultCurrency,
+            exchange_rate_to_inr: parseFloat(settings.settings.exchange_rate_usd) || defaultCurrency.exchange_rate_to_inr,
+            bank_margin: parseFloat(settings.settings.bank_margin) || defaultCurrency.bank_margin
+        };
+    }
+
+    return defaultCurrency;
 }
 
 // Clear cache (call after saving settings)

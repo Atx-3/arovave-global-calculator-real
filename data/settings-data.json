@@ -339,6 +339,6 @@
     "freight_rate_per_km_20ft": "45",
     "freight_rate_per_km_40ft": "65",
     "min_freight_charge": "5000",
-    "container_stuffing_rate": "3000"
+    "container_stuffing_rate": "5000"
   }
 }
