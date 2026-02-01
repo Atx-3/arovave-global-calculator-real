@@ -394,6 +394,16 @@ export default function Home() {
                     selectedDestPort,
                     effectiveContainerType.id
                 );
+
+                // Override with manual Sea Freight input if provided
+                if (seaFreight && !isNaN(parseFloat(seaFreight))) {
+                    if (!freightData) freightData = {};
+                    freightData.rate_amount = parseFloat(seaFreight);
+                    // Ensure other defaults if freightData was null
+                    if (!freightData.currency) freightData.currency = 'USD';
+                    if (!freightData.freight_conversion_rate) freightData.freight_conversion_rate = 1.0;
+                    if (!freightData.gst_percent) freightData.gst_percent = 5; // Default safe assumption
+                }
             }
 
             const currencyData = await getCurrencySettings('USD');
