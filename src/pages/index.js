@@ -1508,7 +1508,7 @@ export default function Home() {
                                 {/* Shipment Summary */}
                                 <div style={{
                                     display: 'grid',
-                                    gridTemplateColumns: 'repeat(5, 1fr)',
+                                    gridTemplateColumns: selectedTier === 'exFactory' ? '1fr' : 'repeat(5, 1fr)',
                                     gap: 'var(--space-3)',
                                     padding: 'var(--space-4)',
                                     background: 'var(--bg-secondary)',
@@ -1516,29 +1516,33 @@ export default function Home() {
                                     marginBottom: 'var(--space-5)',
                                     border: '1px solid var(--gray-200)'
                                 }}>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Container</div>
-                                        <div style={{ fontWeight: 'var(--font-bold)', fontSize: 'var(--text-lg)' }}>{result.containerCount} × {result.containerCode}</div>
-                                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                                            {result.containerCode === '20FT' ? '5.9m × 2.35m × 2.39m' : '12m × 2.35m × 2.39m'}
-                                        </div>
-                                    </div>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Boxes</div>
-                                        <div style={{ fontWeight: 'var(--font-bold)', fontSize: 'var(--text-lg)' }}>{result.breakdown?.totalBoxes?.toLocaleString() || Math.ceil(result.quantity / (parseInt(unitsPerBox) || 1)).toLocaleString()}</div>
-                                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{boxesPerContainer} per container</div>
-                                    </div>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Origin</div>
-                                        <div style={{ fontWeight: 'var(--font-medium)' }}>{result.loadingPort}</div>
-                                    </div>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Destination</div>
-                                        <div style={{ fontWeight: 'var(--font-medium)' }}>{result.destinationPort}</div>
-                                    </div>
+                                    {selectedTier !== 'exFactory' && (
+                                        <>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Container</div>
+                                                <div style={{ fontWeight: 'var(--font-bold)', fontSize: 'var(--text-lg)' }}>{result.containerCount} × {result.containerCode}</div>
+                                                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                                    {result.containerCode === '20FT' ? '5.9m × 2.35m × 2.39m' : '12m × 2.35m × 2.39m'}
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Boxes</div>
+                                                <div style={{ fontWeight: 'var(--font-bold)', fontSize: 'var(--text-lg)' }}>{result.breakdown?.totalBoxes?.toLocaleString() || Math.ceil(result.quantity / (parseInt(unitsPerBox) || 1)).toLocaleString()}</div>
+                                                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{boxesPerContainer} per container</div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Origin</div>
+                                                <div style={{ fontWeight: 'var(--font-medium)' }}>{result.loadingPort}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Destination</div>
+                                                <div style={{ fontWeight: 'var(--font-medium)' }}>{result.destinationPort}</div>
+                                            </div>
+                                        </>
+                                    )}
                                     <div style={{ textAlign: 'center' }}>
                                         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quantity</div>
-                                        <div style={{ fontWeight: 'var(--font-bold)' }}>{formatNumber(result.quantity)} {result.unit}</div>
+                                        <div style={{ fontWeight: 'var(--font-bold)', fontSize: 'selectedTier === exFactory' ? 'var(--text-xl)' : 'inherit' }}>{formatNumber(result.quantity)} {result.unit}</div>
                                     </div>
                                 </div>
 
@@ -1662,7 +1666,7 @@ export default function Home() {
                                         {/* EXW Subtotal */}
                                         {selectedTier === 'exFactory' ? (
                                             <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>
-                                                <td colSpan="2">EX-FACTORY Total ({result.pricing.breakdown.totalBoxes} boxes)</td>
+                                                <td colSpan="2">EX-FACTORY Total</td>
                                                 <td>{formatINR(result.pricing.exFactory.inr)}</td>
                                             </tr>
                                         ) : (
