@@ -1034,34 +1034,36 @@ export default function Home() {
                                     />
                                     <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Applied on overall rate</small>
                                 </div>
-                                <div>
-                                    <label className="form-label">Certifications</label>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
-                                        {certifications.map(cert => (
-                                            <label
-                                                key={cert.id}
-                                                style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px',
-                                                    padding: '4px 8px',
-                                                    background: selectedCerts.includes(cert.id) ? 'var(--primary-100)' : 'var(--bg-secondary)',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    fontSize: 'var(--text-xs)',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedCerts.includes(cert.id)}
-                                                    onChange={() => toggleCertification(cert.id)}
-                                                    style={{ width: '12px', height: '12px' }}
-                                                />
-                                                {cert.name}
-                                            </label>
-                                        ))}
+                                {selectedTier !== 'exFactory' && (
+                                    <div>
+                                        <label className="form-label">Certifications</label>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
+                                            {certifications.map(cert => (
+                                                <label
+                                                    key={cert.id}
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        padding: '4px 8px',
+                                                        background: selectedCerts.includes(cert.id) ? 'var(--primary-100)' : 'var(--bg-secondary)',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        fontSize: 'var(--text-xs)',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedCerts.includes(cert.id)}
+                                                        onChange={() => toggleCertification(cert.id)}
+                                                        style={{ width: '12px', height: '12px' }}
+                                                    />
+                                                    {cert.name}
+                                                </label>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             {/* EXW Extra Charges */}
@@ -1732,6 +1734,26 @@ export default function Home() {
                                             </tr>
                                         )}
 
+
+
+
+                                        {/* Profit Margin (if applicable) */}
+                                        {result.pricing.breakdown.profitIncluded?.amount > 0 && (
+                                            <tr>
+                                                <td>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                                        <span>💰</span>
+                                                        <div>
+                                                            <div>Profit Margin ({customProfitRate}% on Total)</div>
+                                                            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Applied to entire bill</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td><span className="badge badge-dark">On Total</span></td>
+                                                <td>+{formatINR(result.pricing.breakdown.profitIncluded.amount)}</td>
+                                            </tr>
+                                        )}
+
                                         {/* EXW Subtotal */}
                                         {selectedTier === 'exFactory' ? (
                                             <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>
@@ -1739,9 +1761,9 @@ export default function Home() {
                                                 <td>{formatINR(result.pricing.exFactory.inr)}</td>
                                             </tr>
                                         ) : (
-                                            <tr style={{ background: 'var(--bg-glass)', fontWeight: 'var(--font-semibold)' }}>
-                                                <td colSpan="2">EXW Subtotal ({result.pricing.breakdown.totalBoxes} boxes)</td>
-                                                <td>{formatINR(result.pricing.exFactory.baseInr)}</td>
+                                            <tr style={{ background: 'var(--gray-50)', color: 'var(--text-muted)' }}>
+                                                <td colSpan="2">Ex-Factory Subtotal</td>
+                                                <td>{formatINR(result.pricing.exFactory.inr - result.pricing.profit)}</td>
                                             </tr>
                                         )}
 
@@ -1871,18 +1893,7 @@ export default function Home() {
                                         )}
 
                                         {/* Profit Row - Applied to Entire Bill */}
-                                        {result.pricing.breakdown.profitIncluded?.amount > 0 && (
-                                            <tr style={{ background: 'linear-gradient(135deg, var(--success-50), var(--primary-50))', fontWeight: 'var(--font-semibold)' }}>
-                                                <td>
-                                                    💰 Profit Margin ({result.pricing.breakdown.profitIncluded.rate}% on Total)
-                                                    <small style={{ display: 'block', color: 'var(--text-muted)', fontWeight: 'normal', fontSize: '10px' }}>
-                                                        Applied to entire bill
-                                                    </small>
-                                                </td>
-                                                <td><span className="badge badge-success">On Total</span></td>
-                                                <td style={{ color: 'var(--success)', fontWeight: 'var(--font-bold)' }}>+{formatINR(result.pricing.breakdown.profitIncluded.amount)}</td>
-                                            </tr>
-                                        )}
+
                                     </tbody>
                                 </table>
 
