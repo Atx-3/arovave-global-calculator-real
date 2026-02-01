@@ -304,8 +304,6 @@ export default function Home() {
 
     // Calculate rates
     const handleCalculate = async () => {
-        console.log('Starting calculation...', { selectedTier, selectedProduct, quantity, boxesPerContainer, selectedContainerType, selectedLocation, selectedPort, selectedCountry, selectedDestPort });
-
         // Base Validation (all tiers)
         if (!selectedProduct) return setError('Please select a product');
         if (!quantity || parseFloat(quantity) <= 0) return setError('Please enter a valid quantity');
@@ -340,8 +338,6 @@ export default function Home() {
             const destPort = destinationPorts.find(p => p.id.toString() === selectedDestPort);
             const selectedCertifications = certifications.filter(c => selectedCerts.includes(c.id));
 
-            console.log('Master data found:', { location, port, country, destPort });
-
             // Determine effective container type (use selected or default to first available for EXW)
             const effectiveContainerType = selectedContainerType || (containerTypes.length > 0 ? containerTypes[0] : null);
             if (!effectiveContainerType && selectedTier !== 'exFactory') {
@@ -352,33 +348,24 @@ export default function Home() {
             let localFreightRate = 0;
             // Only fetch local freight if a port is selected AND we have a valid container type
             if (selectedPort && effectiveContainerType) {
-                console.log('Fetching local freight rate...');
                 localFreightRate = await getLocalFreightRate(
                     selectedLocation,
                     selectedPort,
                     effectiveContainerType.id
                 );
-                console.log('Local freight rate:', localFreightRate);
-            } else {
-                console.log('Skipping local freight (no port/container selected)');
             }
 
             let freightData = null;
             // Only fetch international freight for CIF
             if (selectedTier === 'cif' && effectiveContainerType) {
-                console.log('Fetching international freight rate...');
                 freightData = await getFreightRate(
                     selectedPort,
                     selectedDestPort,
                     effectiveContainerType.id
                 );
-                console.log('Freight data:', freightData);
-            } else {
-                console.log('Skipping international freight (not CIF)');
             }
 
             const currencyData = await getCurrencySettings('USD');
-            console.log('Currency data:', currencyData);
 
             // Calculate
             // For EXW, boxesPerContainer might be missing. Default to something safe (e.g., 1000) or calculate from quantity if possible, 
@@ -431,13 +418,6 @@ export default function Home() {
                 ? parseFloat(customProfitRate)
                 : parseFloat(settings.profit_rate) || 5.0;
 
-            console.log('Calling calculateExportPricing with:', {
-                localFreightRate,
-                freightRate: freightData?.rate_amount || 0,
-                selectedTier,
-                effectiveContainerType
-            });
-
             const pricing = calculateExportPricing({
                 product: selectedProduct,
                 customPriceUsd: parseFloat(customPrice) || selectedProduct?.base_price_usd || 0, // Use editable price
@@ -479,8 +459,6 @@ export default function Home() {
                 totalBoxes: totalBoxesNeeded,
                 paymentTerms: parseFloat(paymentTerms) || 0
             });
-
-            console.log('Calculation successful:', pricing);
 
             setResult({
                 pricing,
@@ -830,7 +808,7 @@ export default function Home() {
                             border: '1px solid var(--primary-100)'
                         }}>
                             <label className="form-label" style={{ marginBottom: 'var(--space-3)', fontWeight: 'var(--font-bold)' }}>
-                                Select Quote Type *
+                                Select Quote Type <span style={{ color: 'var(--error)' }}>*</span>
                             </label>
                             <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                                 <button
@@ -878,7 +856,7 @@ export default function Home() {
                             {/* Product Row */}
                             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
                                 <div>
-                                    <label className="form-label">Product Name *</label>
+                                    <label className="form-label">Product Name <span style={{ color: 'var(--error)' }}>*</span></label>
                                     <select
                                         className="form-select"
                                         value={selectedProduct?.id || ''}
@@ -907,7 +885,7 @@ export default function Home() {
                             {/* Quantity & Price Row */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
                                 <div>
-                                    <label className="form-label">Required Quantity ({selectedProduct?.unit || 'Units'}) *</label>
+                                    <label className="form-label">Required Quantity ({selectedProduct?.unit || 'Units'}) <span style={{ color: 'var(--error)' }}>*</span></label>
                                     <input
                                         type="number"
                                         className="form-input"
@@ -1091,7 +1069,7 @@ export default function Home() {
                                 {/* Container & Location Row */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
                                     <div>
-                                        <label className="form-label">Container Type *</label>
+                                        <label className="form-label">Container Type <span style={{ color: 'var(--error)' }}>*</span></label>
                                         <select
                                             className="form-select"
                                             value={selectedContainerType?.id || ''}
@@ -1105,7 +1083,7 @@ export default function Home() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="form-label">Manufacturing Location *</label>
+                                        <label className="form-label">Manufacturing Location <span style={{ color: 'var(--error)' }}>*</span></label>
                                         <select
                                             className="form-select"
                                             value={selectedLocation}
@@ -1121,7 +1099,7 @@ export default function Home() {
 
                                 {/* Boxes per Container - Full Width with Calculate Button */}
                                 <div style={{ marginBottom: 'var(--space-3)' }}>
-                                    <label className="form-label">Boxes per Container *</label>
+                                    <label className="form-label">Boxes per Container <span style={{ color: 'var(--error)' }}>*</span></label>
                                     <input
                                         type="number"
                                         className="form-input"
@@ -1151,7 +1129,7 @@ export default function Home() {
 
                                 {/* Port of Loading */}
                                 <div style={{ marginBottom: 'var(--space-3)' }}>
-                                    <label className="form-label">Port of Loading *</label>
+                                    <label className="form-label">Port of Loading <span style={{ color: 'var(--error)' }}>*</span></label>
                                     <select
                                         className="form-select"
                                         value={selectedPort}
@@ -1386,7 +1364,7 @@ export default function Home() {
                                 {/* Destination Row */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
                                     <div>
-                                        <label className="form-label">Destination Country *</label>
+                                        <label className="form-label">Destination Country <span style={{ color: 'var(--error)' }}>*</span></label>
                                         <select
                                             className="form-select"
                                             value={selectedCountry}
@@ -1399,7 +1377,7 @@ export default function Home() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="form-label">Destination Port *</label>
+                                        <label className="form-label">Destination Port <span style={{ color: 'var(--error)' }}>*</span></label>
                                         <select
                                             className="form-select"
                                             value={selectedDestPort}

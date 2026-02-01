@@ -457,7 +457,7 @@ export function calculateExportPricing({
             },
             customCharges: {
                 label: 'Packaging & Extra Charges',
-                total: roundToTwo(customChargesTotal),
+                total: roundToTwo(totalPackagingCharges + totalExwExtraCharges + totalFobExtraCharges + totalCifExtraCharges),
                 chargeType: 'flat'
             },
             // NEW: EXW Packing breakdown
