@@ -190,7 +190,7 @@ export function calculateExportPricing({
     containerStuffingTotal = 0,
     exportPackingTotal = 0,
     indiaInsuranceRate = 0,
-    marineInsuranceType = 'ICC-C',
+    marineInsuranceRate = 0.50, // Replaces marineInsuranceType
 
     totalBoxes = 0,
     totalUnits = 0, // NEW: Explicit unit count (if different from quantity)
@@ -291,29 +291,30 @@ export function calculateExportPricing({
     // Add legacy/FOB extra charges here (container stuffing, export packing, etc)
     const totalFobExtraCharges = parseFloat(extraCharges) || 0;
 
+    // Calculate Indian Insurance (Compulsory per shipment)
+    // Applied on cumulative cost before final FOB aggregation
+    // Base for Indian Insurance = Ex-Factory + Local Freight + Handling + Port Charges + Misc
+    const indianInsuranceBase = exFactoryINR + localFreightTotal + handlingCosts.total + portCosts.total + miscCosts.total;
+    const indianInsuranceCost = indianInsuranceBase * (parseFloat(indiaInsuranceRate) / 100);
+
     const fobINR = exFactoryINR
         + localFreightTotal
         + handlingCosts.total
         + portCosts.total
         + miscCosts.total
         + certificationTotal
-        + totalFobExtraCharges;
+        + totalFobExtraCharges
+        + indianInsuranceCost; // Add Indian Insurance to FOB
 
     const fobUSD = convertToUSD(fobINR, exchangeRate);
 
     // ============================================
-    // STEP 9: ECGC (Export Credit Guarantee)
+    // STEP 9: INTERNATIONAL FREIGHT (CFR)
     // ============================================
-    const ecgcAmount = fobINR * (ecgcRate / 100);
-
-    // ============================================
-    // STEP 10: INTERNATIONAL FREIGHT
-    // ============================================
-    const freightPerContainer = parseFloat(freightRate) || 0;
-    const freightTotalForeign = freightPerContainer * containerCount;
+    const freightAmountUSD = (parseFloat(freightRate) || 0) * containerCount;
 
     // Apply freight conversion rate
-    const freightAdjusted = freightTotalForeign * (parseFloat(freightConversionRate) || 1);
+    const freightAdjusted = freightAmountUSD * (parseFloat(freightConversionRate) || 1);
 
     // Convert to INR with bank margin
     const freightINR = convertToINR(freightAdjusted, exchangeRate, bankMargin);
@@ -323,33 +324,31 @@ export function calculateExportPricing({
     const freightWithGST = freightINR + freightGSTAmount;
 
     // ============================================
-    // STEP 11: INSURANCE
+    // STEP 10: ECGC (Export Credit Guarantee)
     // ============================================
-    // Insurance is calculated on CIF, so we need iterative calculation
-    // CIF = FOB + Freight + Insurance
-    // Insurance = InsuranceRate% × CIF
-    // So: Insurance = InsuranceRate% × (FOB + Freight + Insurance)
-    // Insurance × (1 - InsuranceRate%) = InsuranceRate% × (FOB + Freight)
-    // Insurance = (InsuranceRate% × (FOB + Freight)) / (1 - InsuranceRate%)
+    const ecgcAmount = fobINR * (ecgcRate / 100);
 
-    const preCifBase = fobINR + ecgcAmount + freightWithGST;
-    let insuranceAmount = (preCifBase * (insuranceRate / 100)) / (1 - (insuranceRate / 100));
-
-    if (insuranceAmount < minInsurance) {
-        insuranceAmount = minInsurance;
-    }
+    // ============================================
+    // STEP 11: MARINE INSURANCE (CIF)
+    // ============================================
+    // Calculated as percentage of (CFR Value + 10%) usually, but keeping it simple as % of CFR Base
+    // Base = FOB + Freight
+    const cfrBase = fobINR + freightINR; // Use freightINR without GST for insurance base
+    const marineInsuranceCost = cfrBase * (parseFloat(marineInsuranceRate) / 100);
+    const insuranceTotal = Math.max(marineInsuranceCost, parseFloat(minInsurance) || 0);
 
     // ============================================
     // STEP 12: BANK CHARGES
     // ============================================
-    const invoiceValue = preCifBase + insuranceAmount;
-    const bankCharges = invoiceValue * (bankChargeRate / 100);
+    // Base for bank charges: FOB + ECGC + Freight (with GST) + Marine Insurance + CIF Extra Charges
+    const cifBaseForBankCharges = fobINR + ecgcAmount + freightWithGST + insuranceTotal;
+    const bankCharges = cifBaseForBankCharges * (bankChargeRate / 100);
 
     // ============================================
     // STEP 13: PROFIT MARGIN (Applied at selected tier)
     // ============================================
     const totalCifExtraCharges = parseFloat(cifExtraCharges) || 0;
-    const costBaseCIF = invoiceValue + bankCharges + totalCifExtraCharges;
+    const costBaseCIF = cifBaseForBankCharges + bankCharges + totalCifExtraCharges;
 
     // Calculate profit base based on selected tier
     let profitBase = 0;
@@ -385,13 +384,13 @@ export function calculateExportPricing({
     if (selectedTier === 'exFactory') {
         // Profit added to Ex Factory only
         exFactoryFinalINR = exFactoryINR + profitAmount;
-        fobFinalINR = fobINR; // No profit in FOB/CIF
-        cifFinalINR = costBaseCIF;
+        fobFinalINR = fobINR + profitAmount; // Profit flows through
+        cifFinalINR = costBaseCIF + profitAmount; // Profit flows through
     } else if (selectedTier === 'fob') {
         // Profit added to FOB
         exFactoryFinalINR = exFactoryINR;
         fobFinalINR = fobINR + profitAmount;
-        cifFinalINR = costBaseCIF;
+        cifFinalINR = costBaseCIF + profitAmount; // Profit flows through
     } else {
         // CIF - profit added to full cost (current behavior)
         exFactoryFinalINR = exFactoryINR;
@@ -432,7 +431,7 @@ export function calculateExportPricing({
             inr: roundToTwo(fobFinalINR),
             usd: roundToTwo(fobFinalUSD),
             baseInr: roundToTwo(fobINR),
-            baseUsd: roundToTwo(fobUSD)
+            baseUsd: roundToTwo(convertToUSD(fobINR, exchangeRate))
         },
         cif: {
             inr: roundToTwo(cifFinalINR),
@@ -509,10 +508,11 @@ export function calculateExportPricing({
                 total: roundToTwo(exportPackingTotal),
                 chargeType: 'per_container'
             },
-            indiaInsurance: {
+            indianInsurance: {
                 label: 'Insurance (India Side)',
+                base: roundToTwo(indianInsuranceBase),
                 rate: indiaInsuranceRate,
-                total: 0, // Calculated if needed
+                total: roundToTwo(indianInsuranceCost),
                 chargeType: 'percentage'
             },
             paymentTerms: {

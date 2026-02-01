@@ -330,8 +330,8 @@
   "settings": {
     "insurance_rate": "0.50",
     "min_insurance": "5000",
-    "bank_charge_rate": "0.25",
-    "profit_rate": "5.0",
+    "bank_charge_rate": "0.5",
+    "profit_rate": "25",
     "profit_type": "percentage",
     "company_name": "Arovave Global",
     "exchange_rate_usd": "92",

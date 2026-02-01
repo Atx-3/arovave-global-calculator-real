@@ -1484,20 +1484,19 @@ export default function Home() {
                                 {/* Marine Insurance */}
                                 <div>
                                     <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
-                                        Marine Insurance Type
+                                        Marine Insurance Rate (%)
                                     </label>
-                                    <select
-                                        className="form-select"
-                                        value={marineInsuranceType}
-                                        onChange={(e) => { setMarineInsuranceType(e.target.value); setResult(null); }}
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={marineInsuranceRate}
+                                        onChange={(e) => { setMarineInsuranceRate(e.target.value); setResult(null); }}
+                                        step="0.01"
+                                        min="0"
                                         style={{ fontSize: 'var(--text-sm)' }}
-                                    >
-                                        <option value="ICC-C">ICC-C @ 0.2% (Basic)</option>
-                                        <option value="ICC-B">ICC-B @ 0.4% (Medium)</option>
-                                        <option value="ICC-A">ICC-A @ 0.6% (Full Coverage)</option>
-                                    </select>
+                                    />
                                     <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                                        ICC-A covers all risks, ICC-B medium coverage, ICC-C basic coverage
+                                        Applied on (FOB + Freight) value
                                     </small>
                                 </div>
 
