@@ -424,8 +424,12 @@ export default function SettingsPage() {
                                         <input className="form-input" type="number" step="0.1" value={generalSettings.profit_rate || ''} onChange={(e) => handleSettingChange('profit_rate', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Insurance Rate (%)</label>
-                                        <input className="form-input" type="number" step="0.01" value={generalSettings.insurance_rate || ''} onChange={(e) => handleSettingChange('insurance_rate', e.target.value)} />
+                                        <label className="form-label">Marine Insurance Rate (%)</label>
+                                        <input className="form-input" type="number" step="0.01" value={generalSettings.marine_insurance_rate || ''} onChange={(e) => handleSettingChange('marine_insurance_rate', e.target.value)} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Indian Insurance Rate (%)</label>
+                                        <input className="form-input" type="number" step="0.01" value={generalSettings.indian_insurance_rate || ''} onChange={(e) => handleSettingChange('indian_insurance_rate', e.target.value)} />
                                     </div>
                                 </div>
                                 <div className="form-row">

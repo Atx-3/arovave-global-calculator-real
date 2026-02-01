@@ -76,8 +76,9 @@ export default function Home() {
     const [paymentTerms, setPaymentTerms] = useState(''); // Cash/Credit %
     const [containerStuffingCharge, setContainerStuffingCharge] = useState(''); // Per container (INR)
     const [indiaInsuranceRate, setIndiaInsuranceRate] = useState(''); // India side insurance %
+    const [marineInsuranceRate, setMarineInsuranceRate] = useState(''); // International marine insurance %
     const [exportPackingCost, setExportPackingCost] = useState(''); // Export packing per container (INR)
-    const [marineInsuranceType, setMarineInsuranceType] = useState('ICC-C'); // ICC-A (0.6%), ICC-B (0.4%), ICC-C (0.2%)
+    // const [marineInsuranceType, setMarineInsuranceType] = useState('ICC-C'); // Obsolete - replaced by marineInsuranceRate
     const [packagingCharges, setPackagingCharges] = useState(''); // Packaging charges in INR (legacy - will merge with outerPackingCost)
     const [extraCharges, setExtraCharges] = useState([]); // Array of {name, amount} for FOB extra charges
     const [exwExtraCharges, setExwExtraCharges] = useState([]); // Array of {name, amount} for EXW extra charges
@@ -156,6 +157,12 @@ export default function Home() {
             if (settingsData) {
                 if (settingsData.container_stuffing_rate) {
                     setContainerStuffingCharge(settingsData.container_stuffing_rate);
+                }
+                if (settingsData.indian_insurance_rate) {
+                    setIndiaInsuranceRate(settingsData.indian_insurance_rate);
+                }
+                if (settingsData.marine_insurance_rate) {
+                    setMarineInsuranceRate(settingsData.marine_insurance_rate);
                 }
             }
 
@@ -501,8 +508,10 @@ export default function Home() {
                 outerPackingTotal: totalOuterPacking,
                 containerStuffingTotal: totalContainerStuffing,
                 exportPackingTotal: totalExportPacking,
+                exportPackingTotal: totalExportPacking,
                 indiaInsuranceRate: effectiveIndiaInsuranceRate,
-                marineInsuranceType: marineInsuranceType,
+                marineInsuranceRate: parseFloat(marineInsuranceRate) || 0, // NEW
+                // marineInsuranceType: marineInsuranceType, // Obsolete
                 totalBoxes: totalBoxesNeeded,
                 totalUnits: totalUnits, // NEW: Pass calculated units
                 paymentTerms: parseFloat(paymentTerms) || 0
