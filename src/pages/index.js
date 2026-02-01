@@ -51,6 +51,7 @@ export default function Home() {
     const [selectedCountry, setSelectedCountry] = useState('');
     const [selectedDestPort, setSelectedDestPort] = useState('');
     const [selectedCerts, setSelectedCerts] = useState([]);
+    const [customPrice, setCustomPrice] = useState(''); // Editable price - defaults from product but can be overridden
 
     // Calculated
     const [containerCount, setContainerCount] = useState(0);
@@ -225,6 +226,8 @@ export default function Home() {
         const productId = e.target.value;
         const product = products.find(p => p.id.toString() === productId);
         setSelectedProduct(product || null);
+        // Set default price from product (can be edited/discounted)
+        setCustomPrice(product?.base_price_usd?.toString() || '');
         setResult(null);
     };
 
@@ -356,6 +359,7 @@ export default function Home() {
 
             const pricing = calculateExportPricing({
                 product: selectedProduct,
+                customPriceUsd: parseFloat(customPrice) || selectedProduct?.base_price_usd || 0, // Use editable price
                 quantity: parseFloat(quantity),
                 containerType: selectedContainerType,
                 qtyPerContainer: qtyPerContainer,
@@ -825,15 +829,57 @@ export default function Home() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="form-label">Price (USD/{selectedProduct?.unit || 'Unit'})</label>
+                                    <label className="form-label">
+                                        Price (USD/{selectedProduct?.unit || 'Unit'})
+                                        {customPrice && selectedProduct?.base_price_usd && parseFloat(customPrice) < parseFloat(selectedProduct.base_price_usd) && (
+                                            <span style={{
+                                                color: 'var(--success)',
+                                                marginLeft: 'var(--space-2)',
+                                                fontSize: 'var(--text-xs)',
+                                                fontWeight: 'var(--font-bold)'
+                                            }}>
+                                                💰 {(((parseFloat(selectedProduct.base_price_usd) - parseFloat(customPrice)) / parseFloat(selectedProduct.base_price_usd)) * 100).toFixed(1)}% OFF
+                                            </span>
+                                        )}
+                                    </label>
                                     <input
                                         type="number"
                                         className="form-input"
-                                        placeholder={selectedProduct?.base_price_usd || '0.00'}
-                                        value={selectedProduct?.base_price_usd || ''}
-                                        disabled
-                                        style={{ background: 'var(--bg-secondary)' }}
+                                        placeholder={selectedProduct?.base_price_usd || 'Select product first'}
+                                        value={customPrice}
+                                        onChange={(e) => { setCustomPrice(e.target.value); setResult(null); }}
+                                        min="0"
+                                        step="0.01"
+                                        style={{
+                                            background: customPrice && selectedProduct?.base_price_usd && parseFloat(customPrice) !== parseFloat(selectedProduct.base_price_usd)
+                                                ? 'var(--success-50)'
+                                                : 'var(--bg-secondary)',
+                                            borderColor: customPrice && selectedProduct?.base_price_usd && parseFloat(customPrice) < parseFloat(selectedProduct.base_price_usd)
+                                                ? 'var(--success)'
+                                                : undefined
+                                        }}
                                     />
+                                    {selectedProduct?.base_price_usd && (
+                                        <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                                            Default: ${selectedProduct.base_price_usd} |
+                                            <button
+                                                type="button"
+                                                onClick={() => setCustomPrice(selectedProduct.base_price_usd.toString())}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: 'var(--primary)',
+                                                    cursor: 'pointer',
+                                                    padding: 0,
+                                                    marginLeft: '4px',
+                                                    fontSize: '10px',
+                                                    textDecoration: 'underline'
+                                                }}
+                                            >
+                                                Reset
+                                            </button>
+                                        </small>
+                                    )}
                                 </div>
                             </div>
 

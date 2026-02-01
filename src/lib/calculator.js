@@ -124,6 +124,7 @@ export function calculateCostHeads(costHeads, containerCount, quantity, baseValu
 export function calculateExportPricing({
     // Product & Quantity
     product,
+    customPriceUsd = null, // Optional: user can override product price
     quantity,
 
     // Container
@@ -209,7 +210,10 @@ export function calculateExportPricing({
     // ============================================
     // STEP 3: EX-FACTORY COST (Product + Packaging)
     // ============================================
-    const basePrice = parseFloat(product.base_price_usd) || 0;
+    // Use custom price if provided, otherwise use product's base price
+    const basePrice = customPriceUsd !== null && customPriceUsd > 0
+        ? customPriceUsd
+        : (parseFloat(product.base_price_usd) || 0);
     const exFactoryProductUSD = basePrice * quantity;
     const exFactoryProductINR = convertToINR(exFactoryProductUSD, exchangeRate, 0);
     // Add packaging and extra charges to Ex-Factory
