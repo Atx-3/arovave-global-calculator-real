@@ -70,6 +70,8 @@ export default function Home() {
     const [innerPackingCost, setInnerPackingCost] = useState(''); // Inner packing cost per unit (INR)
     const [outerPackingCost, setOuterPackingCost] = useState(''); // Outer packing cost per box (INR)
     const [unitsPerBox, setUnitsPerBox] = useState(''); // No. of units in outer box
+    const [unitWeight, setUnitWeight] = useState(''); // NEW: Weight per unit
+    const [boxWeightMain, setBoxWeightMain] = useState(''); // Kept for backward compatibility/fallback
     const [boxDimensions, setBoxDimensions] = useState({ length: '', width: '', height: '' }); // Box dimensions (Optional)
     const [paymentTerms, setPaymentTerms] = useState(''); // Cash/Credit %
     const [containerStuffingCharge, setContainerStuffingCharge] = useState(''); // Per container (INR)
@@ -83,10 +85,7 @@ export default function Home() {
 
     // Container Calculator Modal State
     const [showCalcModal, setShowCalcModal] = useState(false);
-    const [boxLength, setBoxLength] = useState('');
-    const [boxWidth, setBoxWidth] = useState('');
-    const [boxHeight, setBoxHeight] = useState('');
-    const [boxWeight, setBoxWeight] = useState('');
+    const [unitWeight, setUnitWeight] = useState(''); // NEW: Weight per unit
     const [calcResult, setCalcResult] = useState(null);
     const [calcError, setCalcError] = useState('');
 
@@ -375,22 +374,59 @@ export default function Home() {
                 ? parseFloat(boxesPerContainer)
                 : 10000; // Arbitrary high number if missing
 
-            const qtyPerContainer = boxWeightMain && parseFloat(boxWeightMain) > 0
-                ? safeBoxesPerContainer * parseFloat(boxWeightMain)
-                : safeBoxesPerContainer;
+            // 1. Calculate Total Units
+            // If Unit Weight is provided, Quantity is treated as Total Weight (kg)
+            // Total Units = Total Weight / Unit Weight
+            let totalUnits = parseFloat(quantity);
+            if (unitWeight && parseFloat(unitWeight) > 0) {
+                totalUnits = Math.ceil(parseFloat(quantity) / parseFloat(unitWeight));
+            }
 
-            // Calculate total boxes needed
-            const totalBoxesNeeded = boxWeightMain && parseFloat(boxWeightMain) > 0
-                ? Math.ceil(parseFloat(quantity) / parseFloat(boxWeightMain))
-                : (unitsPerBox && parseFloat(unitsPerBox) > 0
-                    ? Math.ceil(parseFloat(quantity) / parseFloat(unitsPerBox))
-                    : Math.ceil(parseFloat(quantity) / safeBoxesPerContainer));
+            // 2. Calculate Total Boxes
+            // Priority: Units per Box -> Box Weight -> Default
+            let totalBoxesNeeded = 1;
+            if (unitsPerBox && parseFloat(unitsPerBox) > 0) {
+                totalBoxesNeeded = Math.ceil(totalUnits / parseFloat(unitsPerBox));
+            } else if (boxWeightMain && parseFloat(boxWeightMain) > 0) {
+                // Fallback: If we only have box weight and total quantity is weight
+                // This path is less precise if unit details are missing
+                totalBoxesNeeded = Math.ceil(parseFloat(quantity) / parseFloat(boxWeightMain));
+            } else {
+                // Fallback to safe defaults
+                totalBoxesNeeded = Math.ceil(totalUnits / safeBoxesPerContainer);
+            }
 
-            // NEW: Inner Packing = per unit × total quantity
-            const totalInnerPacking = (parseFloat(innerPackingCost) || 0) * parseFloat(quantity);
+            // 3. Inner Packing Cost
+            // Cost = Total Units * Inner Rate per Unit
+            const totalInnerPacking = (parseFloat(innerPackingCost) || 0) * totalUnits;
 
-            // NEW: Outer Packing = per box × total boxes
+            // 4. Outer Packing Cost
+            // Cost = Total Boxes * Outer Rate per Box
             const totalOuterPacking = (parseFloat(outerPackingCost) || 0) * totalBoxesNeeded;
+
+            // Calculate Box Weight (for container estimation if not provided)
+            // If not explicit, estimate: Total Quantity / Total Boxes
+            const estimatedBoxWeight = parseFloat(quantity) / totalBoxesNeeded;
+
+            // Calculate Quantity Per Container (for container count)
+            // If we have accurate box info, use it. 
+            // boxesPerContainer is user input for "Boxes per Container" (Container Capacity)
+            const qtyPerContainer = safeBoxesPerContainer * estimatedBoxWeight;
+
+            // Logic to update container count based on boxes if needed, 
+            // but usually container count is derived from "Boxes per Container" input vs "Total Boxes"
+            // Let's refine container count logic for consistency:
+            // Container Count = Total Boxes / Boxes Per Container
+            const calculatedContainerCount = Math.ceil(totalBoxesNeeded / safeBoxesPerContainer);
+            // Use provided count if manual or override, else calculated
+            // But usually we rely on the main "containerCount" variable if it was passed or calculated differently.
+            // Actually, in previous code `containerCount` comes from `calculateContainers(quantity, ...)`
+            // which uses `qtyPerContainer`.
+            // Let's ensure containerCount reflects the boxes logic:
+
+            // Re-eval container count based on boxes
+            const effectiveContainerCount = Math.ceil(totalBoxesNeeded / safeBoxesPerContainer);
+
 
             // Total EXW Packing Charges (Inner + Outer)
             const totalPackagingCharges = totalInnerPacking + totalOuterPacking;
@@ -401,10 +437,10 @@ export default function Home() {
             const totalCifExtraCharges = cifExtraCharges.reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
 
             // NEW: Container Stuffing (per container)
-            const totalContainerStuffing = (parseFloat(containerStuffingCharge) || 0) * containerCount;
+            const totalContainerStuffing = (parseFloat(containerStuffingCharge) || 0) * effectiveContainerCount;
 
             // NEW: Export Packing/Palletization (per container)
-            const totalExportPacking = (parseFloat(exportPackingCost) || 0) * containerCount;
+            const totalExportPacking = (parseFloat(exportPackingCost) || 0) * effectiveContainerCount;
 
             // NEW: India Insurance Rate
             const effectiveIndiaInsuranceRate = parseFloat(indiaInsuranceRate) || 0;
@@ -424,7 +460,7 @@ export default function Home() {
                 quantity: parseFloat(quantity),
                 containerType: effectiveContainerType,
                 qtyPerContainer: qtyPerContainer,
-                containerCount: containerCount, // Pass form's container count for consistency
+                containerCount: effectiveContainerCount, // Use box-based count
                 localFreightRate,
                 portHandlingPerContainer: port?.handling_per_container || 0,
                 chaCharges: port?.cha_charges || 0,
@@ -468,7 +504,7 @@ export default function Home() {
                 quantity: parseFloat(quantity),
                 containerType: effectiveContainerType?.name || 'N/A',
                 containerCode: effectiveContainerType?.code || 'N/A',
-                containerCount: containerCount, // Use form's containerCount state
+                containerCount: effectiveContainerCount, // Use box-based count
                 factoryLocation: location?.name || 'N/A',
                 loadingPort: port?.name || 'N/A',
                 country: country?.name || 'N/A',
@@ -917,6 +953,35 @@ export default function Home() {
                                         disabled
                                         style={{ background: 'var(--bg-secondary)' }}
                                     />
+                                </div>
+                            </div>
+
+                            {/* Unit Weight & Units per Box Row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                                <div>
+                                    <label className="form-label">Unit Weight (kg) <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>(Optional)</span></label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="e.g., 0.5"
+                                        value={unitWeight}
+                                        onChange={(e) => { setUnitWeight(e.target.value); setResult(null); }}
+                                        min="0"
+                                        step="0.01"
+                                    />
+                                    <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>If Quantity is Total Weight, enter weight per unit here.</small>
+                                </div>
+                                <div>
+                                    <label className="form-label">Units per Outer Box</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="e.g., 20"
+                                        value={unitsPerBox}
+                                        onChange={(e) => { setUnitsPerBox(e.target.value); setResult(null); }}
+                                        min="1"
+                                    />
+                                    <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>How many units fit in one master carton?</small>
                                 </div>
                             </div>
 
