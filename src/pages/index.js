@@ -1153,7 +1153,7 @@ export default function Home() {
                                             setShowCalcModal(true);
                                         }}
                                     >
-                                        📦 Calculate
+                                        Calculate no. of boxes per container
                                     </button>
 
                                     <label className="form-label">Boxes per Container <span style={{ color: 'var(--error)' }}>*</span></label>
