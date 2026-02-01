@@ -78,7 +78,6 @@ export default function Home() {
     const [indiaInsuranceRate, setIndiaInsuranceRate] = useState(''); // India side insurance %
     const [marineInsuranceRate, setMarineInsuranceRate] = useState(''); // International marine insurance %
     const [seaFreight, setSeaFreight] = useState(''); // Sea Freight ($/container)
-    const [customBankChargeRate, setCustomBankChargeRate] = useState(''); // User editable bank charge rate
     const [exportPackingCost, setExportPackingCost] = useState(''); // Export packing per container (INR)
     // const [marineInsuranceType, setMarineInsuranceType] = useState('ICC-C'); // Obsolete - replaced by marineInsuranceRate
     const [packagingCharges, setPackagingCharges] = useState(''); // Packaging charges in INR (legacy - will merge with outerPackingCost)
@@ -165,9 +164,6 @@ export default function Home() {
                 }
                 if (settingsData.marine_insurance_rate) {
                     setMarineInsuranceRate(settingsData.marine_insurance_rate);
-                }
-                if (settingsData.bank_charge_rate) {
-                    setCustomBankChargeRate(settingsData.bank_charge_rate);
                 }
             }
 
@@ -522,7 +518,7 @@ export default function Home() {
                 ecgcRate: country?.ecgc_rate_percent || 0.50,
                 insuranceRate: effectiveMarineInsuranceRate, // Use ICC-based marine insurance
                 minInsurance: parseFloat(settings.min_insurance) || 5000,
-                bankChargeRate: parseFloat(customBankChargeRate) || parseFloat(settings.bank_charge_rate) || 0.25,
+                bankChargeRate: parseFloat(settings.bank_charge_rate) || 0.25,
                 profitRate: effectiveProfitRate,
                 profitType: settings.profit_type || 'percentage',
                 selectedTier: selectedTier,
@@ -1541,25 +1537,6 @@ export default function Home() {
                                     />
                                     <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
                                         Applied on (FOB + Freight) value
-                                    </small>
-                                </div>
-
-                                {/* Bank Charges */}
-                                <div>
-                                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
-                                        Bank Charges (%)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={customBankChargeRate}
-                                        onChange={(e) => { setCustomBankChargeRate(e.target.value); setResult(null); }}
-                                        step="0.01"
-                                        min="0"
-                                        style={{ fontSize: 'var(--text-sm)' }}
-                                    />
-                                    <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                                        Applied on final CIF value
                                     </small>
                                 </div>
 
