@@ -16,7 +16,7 @@ export const CONTAINER_TYPES = [
 // PRODUCTS
 // ============================================
 export const PRODUCTS = [
-    { id: 1, name: 'Premium Basmati Rice', hsn_code: '10063020', unit: 'KG', base_price_usd: 1.50, qty_per_20ft: 18000, qty_per_40ft: 26000, active: true },
+    { id: 1, name: 'Premium Basmati Rice', hsn_code: '10063020', unit: 'KG', base_price_usd: 1.50, qty_per_20ft: 18000, qty_per_40ft: 26000, active: true, linked_manufacturers: [] },
     { id: 2, name: 'Organic Turmeric Powder', hsn_code: '09103010', unit: 'KG', base_price_usd: 3.00, qty_per_20ft: 16000, qty_per_40ft: 24000, active: true },
     { id: 3, name: 'Cumin Seeds', hsn_code: '09093110', unit: 'KG', base_price_usd: 4.50, qty_per_20ft: 15000, qty_per_40ft: 22000, active: true },
     { id: 4, name: 'Black Pepper Whole', hsn_code: '09041110', unit: 'KG', base_price_usd: 8.00, qty_per_20ft: 14000, qty_per_40ft: 21000, active: true },

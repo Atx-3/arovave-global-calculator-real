@@ -207,6 +207,28 @@ export default function Home() {
         loadDestPorts();
     }, [selectedCountry]);
 
+    // Auto-fill Factory Pincode when Location changes
+    useEffect(() => {
+        if (selectedLocation && locations.length > 0) {
+            const loc = locations.find(l => l.id.toString() === selectedLocation);
+            if (loc && loc.pincode) {
+                setFactoryPincode(loc.pincode);
+
+                // Trigger distance calc if port is already selected
+                if (selectedPort) {
+                    const port = ports.find(p => p.id.toString() === selectedPort);
+                    if (port) {
+                        const result = calculateDistanceFromPincodeToPort(loc.pincode, port.code);
+                        if (!result.error) {
+                            setDistanceInfo(result);
+                            setDistanceKm(result.distance.toString());
+                        }
+                    }
+                }
+            }
+        }
+    }, [selectedLocation, locations, selectedPort, ports]);
+
     // Auto-fill boxes per container when product + container type changes
     useEffect(() => {
         if (selectedProduct && selectedContainerType) {
