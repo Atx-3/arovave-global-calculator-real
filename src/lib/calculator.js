@@ -131,6 +131,7 @@ export function calculateExportPricing({
     containerType,
     qtyPerContainer,
     containerCount: providedContainerCount = null, // Optional: pass pre-calculated container count
+    customPrice = null, // Optional: temporary price override (USD)
 
     // Locations
     localFreightRate,  // Rate per container in INR
@@ -179,7 +180,9 @@ export function calculateExportPricing({
 
     // Custom charges (in INR)
     packagingCharges = 0,
-    extraCharges = 0,
+    extraCharges = 0, // Treated as FOB Extra Charges
+    exwExtraCharges = 0, // NEW: EXW Extra Charges
+    cifExtraCharges = 0, // NEW: CIF Extra Charges
 
     // NEW: Restructured cost breakdown fields
     innerPackingTotal = 0,
@@ -204,20 +207,18 @@ export function calculateExportPricing({
     // STEP 2: PACKAGING CHARGES (per box, added to product cost)
     // ============================================
     const totalPackagingCharges = parseFloat(packagingCharges) || 0;
-    const totalExtraChargesAmount = parseFloat(extraCharges) || 0;
-    const customChargesTotal = totalPackagingCharges + totalExtraChargesAmount;
+    const totalExwExtraCharges = parseFloat(exwExtraCharges) || 0;
+    // Note: extraCharges (FOB) removed from here and moved to FOB step
 
     // ============================================
-    // STEP 3: EX-FACTORY COST (Product + Packaging)
+    // STEP 3: EX-FACTORY COST (Product + Packaging + EXW Extras)
     // ============================================
-    // Use custom price if provided, otherwise use product's base price
-    const basePrice = customPriceUsd !== null && customPriceUsd > 0
-        ? customPriceUsd
-        : (parseFloat(product.base_price_usd) || 0);
+    const basePrice = parseFloat(product.base_price_usd) || 0;
     const exFactoryProductUSD = basePrice * quantity;
     const exFactoryProductINR = convertToINR(exFactoryProductUSD, exchangeRate, 0);
-    // Add packaging and extra charges to Ex-Factory
-    const exFactoryINR = exFactoryProductINR + customChargesTotal;
+
+    // Add packaging and EXW extra charges to Ex-Factory
+    const exFactoryINR = exFactoryProductINR + totalPackagingCharges + totalExwExtraCharges;
     const exFactoryUSD = convertToUSD(exFactoryINR, exchangeRate);
 
     // ============================================
@@ -285,13 +286,16 @@ export function calculateExportPricing({
     // ============================================
     // STEP 8: FOB CALCULATION
     // ============================================
-    // Note: Packaging and extra charges are already included in exFactoryINR
+    // Add legacy/FOB extra charges here (container stuffing, export packing, etc)
+    const totalFobExtraCharges = parseFloat(extraCharges) || 0;
+
     const fobINR = exFactoryINR
         + localFreightTotal
         + handlingCosts.total
         + portCosts.total
         + miscCosts.total
-        + certificationTotal;
+        + certificationTotal
+        + totalFobExtraCharges;
 
     const fobUSD = convertToUSD(fobINR, exchangeRate);
 
@@ -342,7 +346,8 @@ export function calculateExportPricing({
     // ============================================
     // STEP 13: PROFIT MARGIN (Applied at selected tier)
     // ============================================
-    const costBaseCIF = invoiceValue + bankCharges;
+    const totalCifExtraCharges = parseFloat(cifExtraCharges) || 0;
+    const costBaseCIF = invoiceValue + bankCharges + totalCifExtraCharges;
 
     // Calculate profit base based on selected tier
     let profitBase = 0;

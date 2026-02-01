@@ -66,6 +66,7 @@ export default function Home() {
 
     // Custom charges state
     const [customProfitRate, setCustomProfitRate] = useState(''); // User-defined profit margin %
+    const [customProductPrice, setCustomProductPrice] = useState(''); // Temporary price override (USD)
     const [innerPackingCost, setInnerPackingCost] = useState(''); // Inner packing cost per unit (INR)
     const [outerPackingCost, setOuterPackingCost] = useState(''); // Outer packing cost per box (INR)
     const [unitsPerBox, setUnitsPerBox] = useState(''); // No. of units in outer box
@@ -76,7 +77,9 @@ export default function Home() {
     const [exportPackingCost, setExportPackingCost] = useState(''); // Export packing per container (INR)
     const [marineInsuranceType, setMarineInsuranceType] = useState('ICC-C'); // ICC-A (0.6%), ICC-B (0.4%), ICC-C (0.2%)
     const [packagingCharges, setPackagingCharges] = useState(''); // Packaging charges in INR (legacy - will merge with outerPackingCost)
-    const [extraCharges, setExtraCharges] = useState([]); // Array of {name, amount} for extra charges
+    const [extraCharges, setExtraCharges] = useState([]); // Array of {name, amount} for FOB extra charges
+    const [exwExtraCharges, setExwExtraCharges] = useState([]); // Array of {name, amount} for EXW extra charges
+    const [cifExtraCharges, setCifExtraCharges] = useState([]); // Array of {name, amount} for CIF extra charges
 
     // Container Calculator Modal State
     const [showCalcModal, setShowCalcModal] = useState(false);
@@ -226,8 +229,6 @@ export default function Home() {
         const productId = e.target.value;
         const product = products.find(p => p.id.toString() === productId);
         setSelectedProduct(product || null);
-        // Set default price from product (can be edited/discounted)
-        setCustomPrice(product?.base_price_usd?.toString() || '');
         setResult(null);
     };
 
@@ -264,6 +265,40 @@ export default function Home() {
 
     const removeExtraCharge = (index) => {
         setExtraCharges(extraCharges.filter((_, i) => i !== index));
+        setResult(null);
+    };
+
+    // EXW Extra charges management
+    const addExwExtraCharge = () => {
+        setExwExtraCharges([...exwExtraCharges, { name: '', amount: '' }]);
+    };
+
+    const updateExwExtraCharge = (index, field, value) => {
+        const updated = [...exwExtraCharges];
+        updated[index][field] = value;
+        setExwExtraCharges(updated);
+        setResult(null);
+    };
+
+    const removeExwExtraCharge = (index) => {
+        setExwExtraCharges(exwExtraCharges.filter((_, i) => i !== index));
+        setResult(null);
+    };
+
+    // CIF Extra charges management
+    const addCifExtraCharge = () => {
+        setCifExtraCharges([...cifExtraCharges, { name: '', amount: '' }]);
+    };
+
+    const updateCifExtraCharge = (index, field, value) => {
+        const updated = [...cifExtraCharges];
+        updated[index][field] = value;
+        setCifExtraCharges(updated);
+        setResult(null);
+    };
+
+    const removeCifExtraCharge = (index) => {
+        setCifExtraCharges(cifExtraCharges.filter((_, i) => i !== index));
         setResult(null);
     };
 
@@ -373,8 +408,10 @@ export default function Home() {
             // Total EXW Packing Charges (Inner + Outer)
             const totalPackagingCharges = totalInnerPacking + totalOuterPacking;
 
-            // Calculate extra charges only (without packaging - avoid double count)
-            const totalExtraChargesOnly = extraCharges.reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
+            // Calculate extra charges totals
+            const totalFobExtraCharges = extraCharges.reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
+            const totalExwExtraCharges = exwExtraCharges.reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
+            const totalCifExtraCharges = cifExtraCharges.reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
 
             // NEW: Container Stuffing (per container)
             const totalContainerStuffing = (parseFloat(containerStuffingCharge) || 0) * containerCount;
@@ -407,8 +444,8 @@ export default function Home() {
                 quantity: parseFloat(quantity),
                 containerType: effectiveContainerType,
                 qtyPerContainer: qtyPerContainer,
-                containerCount: containerCount, // Pass form's container count for consistency (might be 0 for EXW)
-                localFreightRate: localFreightRate || 0, // Ensure it's a number
+                containerCount: containerCount, // Pass form's container count for consistency
+                localFreightRate,
                 portHandlingPerContainer: port?.handling_per_container || 0,
                 chaCharges: port?.cha_charges || 0,
                 customsClearance: port?.customs_per_shipment || 0,
@@ -428,7 +465,10 @@ export default function Home() {
                 profitType: settings.profit_type || 'percentage',
                 selectedTier: selectedTier,
                 packagingCharges: totalPackagingCharges, // Total = Inner + Outer Packing (in INR)
-                extraCharges: totalExtraChargesOnly + totalContainerStuffing + totalExportPacking, // FOB extras
+                // Pass extra charges separately
+                extraCharges: totalFobExtraCharges + totalContainerStuffing + totalExportPacking, // FOB extras
+                exwExtraCharges: totalExwExtraCharges, // EXW extras
+                cifExtraCharges: totalCifExtraCharges, // CIF extras
                 // NEW fields for breakdown display
                 innerPackingTotal: totalInnerPacking,
                 outerPackingTotal: totalOuterPacking,
@@ -692,8 +732,11 @@ export default function Home() {
         setSelectedDestPort('');
         setSelectedCerts([]);
         setCustomProfitRate('');
+        setCustomProductPrice('');
         setPackagingCharges('');
         setExtraCharges([]);
+        setExwExtraCharges([]);
+        setCifExtraCharges([]);
         setResult(null);
         setError('');
         // Reset container type to first option
@@ -891,41 +934,11 @@ export default function Home() {
                                     <input
                                         type="number"
                                         className="form-input"
-                                        placeholder={selectedProduct?.base_price_usd || 'Select product first'}
-                                        value={customPrice}
-                                        onChange={(e) => { setCustomPrice(e.target.value); setResult(null); }}
-                                        min="0"
-                                        step="0.01"
-                                        style={{
-                                            background: customPrice && selectedProduct?.base_price_usd && parseFloat(customPrice) !== parseFloat(selectedProduct.base_price_usd)
-                                                ? 'var(--success-50)'
-                                                : 'var(--bg-secondary)',
-                                            borderColor: customPrice && selectedProduct?.base_price_usd && parseFloat(customPrice) < parseFloat(selectedProduct.base_price_usd)
-                                                ? 'var(--success)'
-                                                : undefined
-                                        }}
+                                        placeholder={selectedProduct?.base_price_usd || '0.00'}
+                                        value={selectedProduct?.base_price_usd || ''}
+                                        disabled
+                                        style={{ background: 'var(--bg-secondary)' }}
                                     />
-                                    {selectedProduct?.base_price_usd && (
-                                        <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                                            Default: ${selectedProduct.base_price_usd} |
-                                            <button
-                                                type="button"
-                                                onClick={() => setCustomPrice(selectedProduct.base_price_usd.toString())}
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    color: 'var(--primary)',
-                                                    cursor: 'pointer',
-                                                    padding: 0,
-                                                    marginLeft: '4px',
-                                                    fontSize: '10px',
-                                                    textDecoration: 'underline'
-                                                }}
-                                            >
-                                                Reset
-                                            </button>
-                                        </small>
-                                    )}
                                 </div>
                             </div>
 
@@ -1002,6 +1015,61 @@ export default function Home() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* EXW Extra Charges */}
+                            {exwExtraCharges.length > 0 && (
+                                <div style={{ marginTop: 'var(--space-3)' }}>
+                                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', display: 'block' }}>
+                                        EXW Extra Charges
+                                    </label>
+                                    {exwExtraCharges.map((charge, index) => (
+                                        <div key={index} style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', alignItems: 'center' }}>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Name (e.g., Special Packing)"
+                                                value={charge.name}
+                                                onChange={(e) => updateExwExtraCharge(index, 'name', e.target.value)}
+                                                style={{ flex: 2, fontSize: 'var(--text-sm)' }}
+                                            />
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                placeholder="₹"
+                                                value={charge.amount}
+                                                onChange={(e) => updateExwExtraCharge(index, 'amount', e.target.value)}
+                                                min="0"
+                                                style={{ flex: 1, fontSize: 'var(--text-sm)' }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeExwExtraCharge(index)}
+                                                style={{
+                                                    background: 'var(--error)',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    padding: 'var(--space-2)',
+                                                    cursor: 'pointer',
+                                                    fontSize: 'var(--text-sm)'
+                                                }}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Add EXW Extra Charge Button */}
+                            <button
+                                type="button"
+                                onClick={addExwExtraCharge}
+                                className="btn btn-secondary btn-sm"
+                                style={{ width: '100%', fontSize: 'var(--text-sm)', marginTop: 'var(--space-3)' }}
+                            >
+                                + Add EXW Extra Charge
+                            </button>
                         </div>
 
                         {/* ============================================ */}
@@ -1365,6 +1433,61 @@ export default function Home() {
                                         ICC-A covers all risks, ICC-B medium coverage, ICC-C basic coverage
                                     </small>
                                 </div>
+
+                                {/* CIF Extra Charges */}
+                                {cifExtraCharges.length > 0 && (
+                                    <div style={{ marginTop: 'var(--space-3)' }}>
+                                        <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)', display: 'block' }}>
+                                            CIF Extra Charges
+                                        </label>
+                                        {cifExtraCharges.map((charge, index) => (
+                                            <div key={index} style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', alignItems: 'center' }}>
+                                                <input
+                                                    type="text"
+                                                    className="form-input"
+                                                    placeholder="Name (e.g., Destination Handling)"
+                                                    value={charge.name}
+                                                    onChange={(e) => updateCifExtraCharge(index, 'name', e.target.value)}
+                                                    style={{ flex: 2, fontSize: 'var(--text-sm)' }}
+                                                />
+                                                <input
+                                                    type="number"
+                                                    className="form-input"
+                                                    placeholder="₹"
+                                                    value={charge.amount}
+                                                    onChange={(e) => updateCifExtraCharge(index, 'amount', e.target.value)}
+                                                    min="0"
+                                                    style={{ flex: 1, fontSize: 'var(--text-sm)' }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeCifExtraCharge(index)}
+                                                    style={{
+                                                        background: 'var(--error)',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        padding: 'var(--space-2)',
+                                                        cursor: 'pointer',
+                                                        fontSize: 'var(--text-sm)'
+                                                    }}
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Add CIF Extra Charge Button */}
+                                <button
+                                    type="button"
+                                    onClick={addCifExtraCharge}
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ width: '100%', fontSize: 'var(--text-sm)', marginTop: 'var(--space-3)' }}
+                                >
+                                    + Add CIF Extra Charge
+                                </button>
                             </div>
                         )}
 
