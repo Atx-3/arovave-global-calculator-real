@@ -1034,38 +1034,9 @@ export default function Home() {
                                     />
                                     <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Applied on overall rate</small>
                                 </div>
-                                {selectedTier !== 'exFactory' && (
-                                    <div>
-                                        <label className="form-label">Certifications</label>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
-                                            {certifications.map(cert => (
-                                                <label
-                                                    key={cert.id}
-                                                    style={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        padding: '4px 8px',
-                                                        background: selectedCerts.includes(cert.id) ? 'var(--primary-100)' : 'var(--bg-secondary)',
-                                                        borderRadius: 'var(--radius-sm)',
-                                                        fontSize: 'var(--text-xs)',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedCerts.includes(cert.id)}
-                                                        onChange={() => toggleCertification(cert.id)}
-                                                        style={{ width: '12px', height: '12px' }}
-                                                    />
-                                                    {cert.name}
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
 
+
+                            </div>
                             {/* EXW Extra Charges */}
                             {exwExtraCharges.length > 0 && (
                                 <div style={{ marginTop: 'var(--space-3)' }}>
@@ -1359,6 +1330,36 @@ export default function Home() {
                                     <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Palletization cost per container (optional)</small>
                                 </div>
 
+
+
+                                <div style={{ marginBottom: 'var(--space-3)' }}>
+                                    <label className="form-label">Certifications</label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
+                                        {certifications.map(cert => (
+                                            <label
+                                                key={cert.id}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                    padding: '4px 8px',
+                                                    background: selectedCerts.includes(cert.id) ? 'var(--primary-100)' : 'var(--bg-secondary)',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    fontSize: 'var(--text-xs)',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedCerts.includes(cert.id)}
+                                                    onChange={() => toggleCertification(cert.id)}
+                                                    style={{ width: '12px', height: '12px' }}
+                                                />
+                                                {cert.name}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
 
                                 {/* Extra Charges */}
                                 {extraCharges.length > 0 && (
