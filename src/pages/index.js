@@ -220,6 +220,19 @@ export default function Home() {
         }
     }, [selectedProduct, selectedContainerType]);
 
+    // Auto-fill Sea Freight when container type changes
+    useEffect(() => {
+        if (selectedContainerType && settings) {
+            const defaultFreight = selectedContainerType.code === '20FT'
+                ? settings.sea_freight_20ft
+                : settings.sea_freight_40ft;
+
+            if (defaultFreight) {
+                setSeaFreight(defaultFreight);
+            }
+        }
+    }, [selectedContainerType, settings]);
+
     // Calculate container count when quantity, boxes per container, or box weight changes
     useEffect(() => {
         if (quantity && boxesPerContainer && boxWeightMain) {
@@ -1480,6 +1493,22 @@ export default function Home() {
                                             ))}
                                         </select>
                                     </div>
+                                </div>
+
+                                {/* Sea Freight */}
+                                <div>
+                                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-1)', display: 'block' }}>
+                                        Sea Freight Rate ($/container)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={seaFreight}
+                                        onChange={(e) => { setSeaFreight(e.target.value); setResult(null); }}
+                                        placeholder="e.g. 1200"
+                                        min="0"
+                                        style={{ fontSize: 'var(--text-sm)' }}
+                                    />
                                 </div>
 
                                 {/* Marine Insurance */}
