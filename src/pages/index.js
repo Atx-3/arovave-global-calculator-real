@@ -1142,6 +1142,20 @@ export default function Home() {
 
                                 {/* Boxes per Container - Full Width with Calculate Button */}
                                 <div style={{ marginBottom: 'var(--space-3)' }}>
+                                    {/* Calculate Button - Opens Modal */}
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        style={{ width: '100%', marginBottom: 'var(--space-2)' }}
+                                        onClick={() => {
+                                            setCalcError('');
+                                            setCalcResult(null);
+                                            setShowCalcModal(true);
+                                        }}
+                                    >
+                                        📦 Calculate
+                                    </button>
+
                                     <label className="form-label">Boxes per Container <span style={{ color: 'var(--error)' }}>*</span></label>
                                     <input
                                         type="number"
@@ -1154,20 +1168,6 @@ export default function Home() {
                                     <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
                                         How many boxes fit in {selectedContainerType?.code || 'container'}
                                     </small>
-
-                                    {/* Calculate Button - Opens Modal */}
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary"
-                                        style={{ width: '100%', marginTop: 'var(--space-2)' }}
-                                        onClick={() => {
-                                            setCalcError('');
-                                            setCalcResult(null);
-                                            setShowCalcModal(true);
-                                        }}
-                                    >
-                                        📦 Calculate
-                                    </button>
                                 </div>
 
                                 {/* Port of Loading */}
@@ -2106,11 +2106,12 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
                 </div>
 
                 {/* Container Info */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-2)', padding: 'var(--space-3)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-4)', textAlign: 'center', fontSize: 'var(--text-xs)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 'var(--space-2)', padding: 'var(--space-3)', background: 'var(--bg-glass)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-4)', textAlign: 'center', fontSize: 'var(--text-xs)' }}>
                     <div><div style={{ color: 'var(--text-muted)' }}>Container</div><div style={{ fontWeight: 'bold' }}>{containerCode}</div></div>
                     <div><div style={{ color: 'var(--text-muted)' }}>L</div><div>{(container.lengthCm / 100).toFixed(1)}m</div></div>
                     <div><div style={{ color: 'var(--text-muted)' }}>W</div><div>{(container.widthCm / 100).toFixed(2)}m</div></div>
                     <div><div style={{ color: 'var(--text-muted)' }}>H</div><div>{(container.heightCm / 100).toFixed(2)}m</div></div>
+                    <div><div style={{ color: 'var(--text-muted)' }}>Max Load</div><div style={{ fontWeight: 'bold' }}>{(container.maxWeightKg / 1000).toFixed(1)}T</div></div>
                 </div>
 
                 {calcError && <div style={{ background: 'var(--error-light)', color: 'var(--error)', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)', fontSize: 'var(--text-sm)' }}>{calcError}</div>}
