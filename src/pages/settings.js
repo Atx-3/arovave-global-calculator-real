@@ -448,6 +448,16 @@ export default function SettingsPage() {
                                         <input className="form-input" type="number" value={generalSettings.container_stuffing_rate || ''} onChange={(e) => handleSettingChange('container_stuffing_rate', e.target.value)} />
                                     </div>
                                 </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">Sea Freight 20FT ($)</label>
+                                        <input className="form-input" type="number" value={generalSettings.sea_freight_20ft || ''} onChange={(e) => handleSettingChange('sea_freight_20ft', e.target.value)} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Sea Freight 40FT ($)</label>
+                                        <input className="form-input" type="number" value={generalSettings.sea_freight_40ft || ''} onChange={(e) => handleSettingChange('sea_freight_40ft', e.target.value)} />
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>

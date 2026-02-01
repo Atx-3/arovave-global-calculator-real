@@ -77,6 +77,7 @@ export default function Home() {
     const [containerStuffingCharge, setContainerStuffingCharge] = useState(''); // Per container (INR)
     const [indiaInsuranceRate, setIndiaInsuranceRate] = useState(''); // India side insurance %
     const [marineInsuranceRate, setMarineInsuranceRate] = useState(''); // International marine insurance %
+    const [seaFreight, setSeaFreight] = useState(''); // Sea Freight ($/container)
     const [exportPackingCost, setExportPackingCost] = useState(''); // Export packing per container (INR)
     // const [marineInsuranceType, setMarineInsuranceType] = useState('ICC-C'); // Obsolete - replaced by marineInsuranceRate
     const [packagingCharges, setPackagingCharges] = useState(''); // Packaging charges in INR (legacy - will merge with outerPackingCost)
