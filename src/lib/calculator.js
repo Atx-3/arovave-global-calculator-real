@@ -550,7 +550,7 @@ export function calculateExportPricing({
                 label: 'Marine Insurance',
                 type: 'Standard',
                 rate: insuranceRate,
-                total: roundToTwo(insuranceAmount),
+                total: roundToTwo(insuranceTotal),
                 chargeType: 'percentage'
             },
             bankCharges: {
@@ -576,7 +576,7 @@ export function calculateExportPricing({
                 miscCosts.perShipment +
                 certificationTotal +
                 ecgcAmount +
-                insuranceAmount +
+                insuranceTotal +
                 bankCharges +
                 profitAmount
             ),
