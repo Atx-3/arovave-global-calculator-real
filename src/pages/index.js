@@ -95,6 +95,9 @@ export default function Home() {
     const [calcResult, setCalcResult] = useState(null);
     const [calcError, setCalcError] = useState('');
 
+    // NEW Inland Freight State
+    const [localFreight, setLocalFreight] = useState('');
+
     // Client Details Modal State (for PDF download)
     const [showClientModal, setShowClientModal] = useState(false);
     const [clientName, setClientName] = useState('');

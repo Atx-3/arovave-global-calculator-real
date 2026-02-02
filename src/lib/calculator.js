@@ -534,10 +534,10 @@ export function calculateExportPricing({
             },
             freight: {
                 label: 'Sea Freight',
-                perContainer: freightPerContainer,
+                perContainer: freightRate,
                 containers: containerCount,
                 currency: freightCurrency,
-                foreignTotal: roundToTwo(freightTotalForeign),
+                foreignTotal: roundToTwo(freightAmountUSD),
                 conversionRate: freightConversionRate,
                 exchangeRate: exchangeRate + bankMargin,
                 inrTotal: roundToTwo(freightINR),
@@ -548,7 +548,7 @@ export function calculateExportPricing({
             },
             insurance: {
                 label: 'Marine Insurance',
-                type: marineInsuranceType,
+                type: 'Standard',
                 rate: insuranceRate,
                 total: roundToTwo(insuranceAmount),
                 chargeType: 'percentage'
