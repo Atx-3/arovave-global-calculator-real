@@ -157,18 +157,29 @@ export function getPortCoordinates(portCode) {
  * Calculate distance between a pincode and a port
  * @param {string} pincode - Source pincode
  * @param {string} portCode - Destination port code
+ * @param {string} [portPincode] - Optional destination port pincode override
  * @returns {object} { distance, from, to } or { error }
  */
-export function calculateDistanceFromPincodeToPort(pincode, portCode) {
+export function calculateDistanceFromPincodeToPort(pincode, portCode, portPincode = null) {
     const sourceCoords = getCoordinatesFromPincode(pincode);
-    const destCoords = getPortCoordinates(portCode);
+    let destCoords = null;
+
+    // Try port pincode first if available
+    if (portPincode) {
+        destCoords = getCoordinatesFromPincode(portPincode);
+    }
+
+    // Fallback to port code lookup if no pincode or pincode invalid
+    if (!destCoords) {
+        destCoords = getPortCoordinates(portCode);
+    }
 
     if (!sourceCoords) {
         return { error: `Pincode ${pincode} not found in database` };
     }
 
     if (!destCoords) {
-        return { error: `Port ${portCode} not found in database` };
+        return { error: `Port coordinates not found (Code: ${portCode}, Pin: ${portPincode})` };
     }
 
     const distance = calculateHaversineDistance(

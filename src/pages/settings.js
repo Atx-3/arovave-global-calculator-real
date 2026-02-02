@@ -179,7 +179,7 @@ export default function SettingsPage() {
         switch (type) {
             case 'products': return { name: '', hsn_code: '', unit: 'KG', base_price_usd: 0, qty_per_20ft: 0, qty_per_40ft: 0, active: true, linked_manufacturers: [] };
             case 'locations': return { name: '', state: '', pincode: '' };
-            case 'ports': return { name: '', code: '', city: '', handling_per_container: 0, cha_charges: 0, customs_per_shipment: 0 };
+            case 'ports': return { name: '', code: '', city: '', pincode: '', handling_per_container: 0, cha_charges: 0, customs_per_shipment: 0 };
             case 'countries': return { name: '', code: '', ecgc_risk_category: 'A', ecgc_rate_percent: 0.3 };
             case 'destPorts': return { name: '', code: '', country_id: 1 };
             case 'containers': return { name: '', code: '', max_weight_kg: 0, max_volume_cbm: 0, length_cm: 0, width_cm: 0, height_cm: 0, is_active: true };
@@ -307,17 +307,16 @@ export default function SettingsPage() {
                             </table>
                         )}
 
-                        {/* Ports Tab */}
                         {activeTab === 'ports' && (
                             <table className="breakup-table">
-                                <thead><tr><th>Name</th><th>Code</th><th>Handling</th><th>CHA</th><th>Actions</th></tr></thead>
+                                <thead><tr><th>Name</th><th>Code</th><th>City</th><th>Pincode</th><th>Actions</th></tr></thead>
                                 <tbody>
                                     {ports.map(item => (
                                         <tr key={item.id}>
                                             <td>{item.name}</td>
                                             <td>{item.code}</td>
-                                            <td>₹{item.handling_per_container?.toLocaleString()}</td>
-                                            <td>₹{item.cha_charges?.toLocaleString()}</td>
+                                            <td>{item.city}</td>
+                                            <td>{item.pincode || '-'}</td>
                                             <td>
                                                 <button className="btn btn-secondary btn-sm" onClick={() => handleEdit('ports', item)} style={{ marginRight: '4px' }}>Edit</button>
                                                 <button className="btn btn-secondary btn-sm" onClick={() => handleDelete('ports', item.id)}>Delete</button>
@@ -562,6 +561,7 @@ export default function SettingsPage() {
                                 <div className="form-row">
                                     <div className="form-group"><label className="form-label">Port Code</label><input className="form-input" value={formData.code || ''} onChange={e => setFormData({ ...formData, code: e.target.value })} /></div>
                                     <div className="form-group"><label className="form-label">City</label><input className="form-input" value={formData.city || ''} onChange={e => setFormData({ ...formData, city: e.target.value })} /></div>
+                                    <div className="form-group"><label className="form-label">Pincode</label><input className="form-input" value={formData.pincode || ''} onChange={e => setFormData({ ...formData, pincode: e.target.value })} /></div>
                                 </div>
                                 <div className="form-group"><label className="form-label">Handling per Container (INR)</label><input className="form-input" type="number" value={formData.handling_per_container || ''} onChange={e => setFormData({ ...formData, handling_per_container: parseInt(e.target.value) || 0 })} /></div>
                                 <div className="form-row">

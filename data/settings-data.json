@@ -131,7 +131,8 @@
       "city": "Mumbai",
       "handling_per_container": 8000,
       "cha_charges": 7500,
-      "customs_per_shipment": 5000
+      "customs_per_shipment": 5000,
+      "pincode": "201310"
     },
     {
       "id": 2,

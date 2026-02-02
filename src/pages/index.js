@@ -218,16 +218,23 @@ export default function Home() {
                 if (selectedPort) {
                     const port = ports.find(p => p.id.toString() === selectedPort);
                     if (port) {
-                        const result = calculateDistanceFromPincodeToPort(loc.pincode, port.code);
+                        const result = calculateDistanceFromPincodeToPort(loc.pincode, port.code, port.pincode);
                         if (!result.error) {
                             setDistanceInfo(result);
-                            setDistanceKm(result.distance.toString());
+                            const dist = result.distance;
+                            setDistanceKm(dist.toString());
+
+                            // Auto-calc freight if rate exists
+                            if (settings.transport_rate_per_km) {
+                                const cost = Math.round(dist * parseFloat(settings.transport_rate_per_km));
+                                setLocalFreight(cost.toString());
+                            }
                         }
                     }
                 }
             }
         }
-    }, [selectedLocation, locations, selectedPort, ports]);
+    }, [selectedLocation, locations, selectedPort, ports, settings]);
 
     // Auto-fill boxes per container when product + container type changes
     useEffect(() => {
@@ -543,7 +550,8 @@ export default function Home() {
                 containerType: effectiveContainerType,
                 qtyPerContainer: qtyPerContainer,
                 containerCount: effectiveContainerCount, // Use box-based count
-                localFreightRate,
+                containerCount: effectiveContainerCount, // Use box-based count
+                localFreightRate: parseFloat(localFreight) || 0, // Manual override or auto-calculated state
                 portHandlingPerContainer: port?.handling_per_container || 0,
                 chaCharges: port?.cha_charges || 0,
                 customsClearance: port?.customs_per_shipment || 0,
