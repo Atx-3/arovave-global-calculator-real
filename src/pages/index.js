@@ -535,8 +535,10 @@ export default function Home() {
             const effectiveIndiaInsuranceRate = parseFloat(indiaInsuranceRate) || 0;
 
             // NEW: Marine Insurance Rate based on ICC type
-            const marineInsuranceRates = { 'ICC-C': 0.2, 'ICC-B': 0.4, 'ICC-A': 0.6 };
-            const effectiveMarineInsuranceRate = marineInsuranceRates[marineInsuranceType] || 0.2;
+            // NEW: Marine Insurance Rate
+            // Use custom rate if provided, default to 0.2 (or 0 if you want strict manual entry)
+            // But usually we default to 0.2% if nothing entered
+            const effectiveMarineInsuranceRate = parseFloat(marineInsuranceRate) || 0.2;
 
             // Use custom profit rate if provided (even if 0), otherwise use settings
             const effectiveProfitRate = customProfitRate !== '' && !isNaN(parseFloat(customProfitRate))
