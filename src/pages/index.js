@@ -274,9 +274,9 @@ export default function Home() {
                 }
             }
 
-            setBasePriceUSD(price.toString());
+            setCustomPrice(price.toString());
         } else if (selectedProduct) {
-            setBasePriceUSD(selectedProduct.base_price_usd.toString());
+            setCustomPrice(selectedProduct.base_price_usd.toString());
         }
     }, [selectedProduct, selectedLocation]);
 
