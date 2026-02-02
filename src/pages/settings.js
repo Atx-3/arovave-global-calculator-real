@@ -177,7 +177,7 @@ export default function SettingsPage() {
 
     function getEmptyForm(type) {
         switch (type) {
-            case 'products': return { name: '', hsn_code: '', unit: 'KG', base_price_usd: 0, qty_per_20ft: 0, qty_per_40ft: 0, active: true };
+            case 'products': return { name: '', hsn_code: '', unit: 'KG', base_price_usd: 0, qty_per_20ft: 0, qty_per_40ft: 0, active: true, linked_manufacturers: [] };
             case 'locations': return { name: '', state: '', pincode: '' };
             case 'ports': return { name: '', code: '', city: '', handling_per_container: 0, cha_charges: 0, customs_per_shipment: 0 };
             case 'countries': return { name: '', code: '', ecgc_risk_category: 'A', ecgc_rate_percent: 0.3 };
@@ -258,6 +258,7 @@ export default function SettingsPage() {
                                         <th>Name</th>
                                         <th>HSN</th>
                                         <th>Price (USD)</th>
+                                        <th>Linked Locs</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -268,6 +269,13 @@ export default function SettingsPage() {
                                             <td>{item.name}</td>
                                             <td>{item.hsn_code}</td>
                                             <td>${item.base_price_usd}</td>
+                                            <td>
+                                                {(item.linked_manufacturers?.length > 0) ? (
+                                                    <span className="badge badge-primary">{item.linked_manufacturers.length}</span>
+                                                ) : (
+                                                    <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>-</span>
+                                                )}
+                                            </td>
                                             <td><span className={`badge ${item.active ? 'badge-success' : 'badge-warning'}`}>{item.active ? 'Active' : 'Inactive'}</span></td>
                                             <td>
                                                 <button className="btn btn-secondary btn-sm" onClick={() => handleEdit('products', item)} style={{ marginRight: '4px' }}>Edit</button>
@@ -488,6 +496,53 @@ export default function SettingsPage() {
                                     <div className="form-group"><label className="form-label">Qty per 40FT</label><input className="form-input" type="number" value={formData.qty_per_40ft || ''} onChange={e => setFormData({ ...formData, qty_per_40ft: parseInt(e.target.value) || 0 })} /></div>
                                 </div>
                                 <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.active || false} onChange={e => setFormData({ ...formData, active: e.target.checked })} /> Active</label></div>
+
+                                <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--gray-200)' }}>
+                                    <label className="form-label">Linked Manufacturing Locations</label>
+                                    {(formData.linked_manufacturers || []).map((link, idx) => (
+                                        <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                                            <select
+                                                className="form-select"
+                                                value={link.location_id}
+                                                onChange={e => {
+                                                    const updated = [...(formData.linked_manufacturers || [])];
+                                                    updated[idx].location_id = parseInt(e.target.value);
+                                                    setFormData({ ...formData, linked_manufacturers: updated });
+                                                }}
+                                                style={{ flex: 2 }}
+                                            >
+                                                <option value="">Select Location</option>
+                                                {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                            </select>
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                placeholder="Price ($)"
+                                                value={link.base_price_usd}
+                                                onChange={e => {
+                                                    const updated = [...(formData.linked_manufacturers || [])];
+                                                    updated[idx].base_price_usd = parseFloat(e.target.value) || 0;
+                                                    setFormData({ ...formData, linked_manufacturers: updated });
+                                                }}
+                                                style={{ flex: 1 }}
+                                            />
+                                            <button
+                                                className="btn btn-sm btn-secondary"
+                                                style={{ color: 'var(--error)' }}
+                                                onClick={() => {
+                                                    const updated = formData.linked_manufacturers.filter((_, i) => i !== idx);
+                                                    setFormData({ ...formData, linked_manufacturers: updated });
+                                                }}
+                                            >X</button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        className="btn btn-sm btn-secondary"
+                                        onClick={() => setFormData({ ...formData, linked_manufacturers: [...(formData.linked_manufacturers || []), { location_id: '', base_price_usd: 0 }] })}
+                                    >
+                                        + Add Manufacturer Link
+                                    </button>
+                                </div>
                             </>
                         )}
 

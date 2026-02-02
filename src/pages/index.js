@@ -255,6 +255,24 @@ export default function Home() {
         }
     }, [selectedContainerType, settings]);
 
+    // Auto-update price if product has specific rate for selected location
+    useEffect(() => {
+        if (selectedProduct && selectedLocation) {
+            let price = selectedProduct.base_price_usd;
+
+            if (selectedProduct.linked_manufacturers && selectedProduct.linked_manufacturers.length > 0) {
+                const link = selectedProduct.linked_manufacturers.find(l => l.location_id.toString() === selectedLocation);
+                if (link && link.base_price_usd > 0) {
+                    price = link.base_price_usd;
+                }
+            }
+
+            setBasePriceUSD(price.toString());
+        } else if (selectedProduct) {
+            setBasePriceUSD(selectedProduct.base_price_usd.toString());
+        }
+    }, [selectedProduct, selectedLocation]);
+
     // Calculate container count when quantity, boxes per container, or box weight changes
     useEffect(() => {
         if (quantity && boxesPerContainer && boxWeightMain) {
