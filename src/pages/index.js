@@ -62,7 +62,7 @@ export default function Home() {
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
     const [showCurrency, setShowCurrency] = useState('INR');
-    const [selectedTier, setSelectedTier] = useState('cif'); // 'exFactory', 'fob', or 'cif'
+    const [selectedTier, setSelectedTier] = useState('exFactory'); // 'exFactory', 'fob', or 'cif'
 
     // Custom charges state
     const [customProfitRate, setCustomProfitRate] = useState(''); // User-defined profit margin %
@@ -96,7 +96,63 @@ export default function Home() {
     const [calcError, setCalcError] = useState('');
 
     // NEW Inland Freight State
+    const [isEditingBreakdown, setIsEditingBreakdown] = useState(false);
     const [localFreight, setLocalFreight] = useState('');
+
+    // Editable Breakdown State - stores overridden values when editing
+    const [editedBreakdown, setEditedBreakdown] = useState({
+        productBase: '',
+        innerPacking: '',
+        outerPacking: '',
+        profit: '',
+        localFreight: '',
+        chaCustoms: '',
+        portHandling: '',
+        containerStuffing: '',
+        exportPacking: '',
+        seaFreight: '',
+        marineInsurance: '',
+        ecgc: '',
+        bankCharges: ''
+    });
+
+    // Initialize editedBreakdown when entering edit mode
+    const handleEditModeToggle = () => {
+        if (!isEditingBreakdown && calcResult) {
+            // Entering edit mode - populate with current calculated values
+            const result = calcResult;
+            setEditedBreakdown({
+                productBase: result.pricing.breakdown.productBase?.total || 0,
+                innerPacking: result.pricing.breakdown.innerPacking?.total || 0,
+                outerPacking: result.pricing.breakdown.outerPacking?.total || 0,
+                profit: result.pricing.breakdown.profitIncluded?.amount || 0,
+                localFreight: result.pricing.breakdown.localFreight?.total || 0,
+                chaCustoms: (result.pricing.breakdown.port?.cha || 0) + (result.pricing.breakdown.port?.customs || 0),
+                portHandling: result.pricing.breakdown.port?.handling || 0,
+                containerStuffing: result.pricing.breakdown.containerStuffing?.total || 0,
+                exportPacking: result.pricing.breakdown.exportPacking?.total || 0,
+                seaFreight: result.pricing.breakdown.freight?.totalWithGST || 0,
+                marineInsurance: result.pricing.breakdown.insurance?.total || 0,
+                ecgc: result.pricing.breakdown.ecgc?.total || 0,
+                bankCharges: result.pricing.breakdown.bankCharges?.total || 0
+            });
+        }
+        setIsEditingBreakdown(!isEditingBreakdown);
+    };
+
+    // Handle breakdown value change
+    const handleBreakdownChange = (field, value) => {
+        setEditedBreakdown(prev => ({
+            ...prev,
+            [field]: parseFloat(value) || 0
+        }));
+    };
+
+    // Calculate edited total
+    const getEditedTotal = () => {
+        if (!isEditingBreakdown) return null;
+        return Object.values(editedBreakdown).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+    };
 
     // Client Details Modal State (for PDF download)
     const [showClientModal, setShowClientModal] = useState(false);
@@ -282,6 +338,24 @@ export default function Home() {
             setCustomPrice(selectedProduct.base_price_usd.toString());
         }
     }, [selectedProduct, selectedLocation]);
+
+    // Track if this is initial price set vs user edit
+    const [priceManuallyChanged, setPriceManuallyChanged] = useState(false);
+
+    // Trigger recalculation state
+    const [recalcTrigger, setRecalcTrigger] = useState(0);
+
+    // Auto-recalculate when customPrice changes manually (if a previous result exists)
+    useEffect(() => {
+        // Only trigger recalc if result exists and price was manually changed
+        if (result && priceManuallyChanged) {
+            const debounceTimer = setTimeout(() => {
+                // Increment trigger to force recalculation
+                setRecalcTrigger(prev => prev + 1);
+            }, 600);
+            return () => clearTimeout(debounceTimer);
+        }
+    }, [customPrice, priceManuallyChanged]);
 
     // Calculate container count when quantity, boxes per container, or box weight changes
     useEffect(() => {
@@ -617,6 +691,13 @@ export default function Home() {
 
         setCalculating(false);
     };
+
+    // Effect to actually call handleCalculate when recalcTrigger changes (placed AFTER handleCalculate is defined)
+    useEffect(() => {
+        if (recalcTrigger > 0) {
+            handleCalculate();
+        }
+    }, [recalcTrigger]);
 
     // Open client details modal for PDF download
     const handleDownloadPDF = () => {
@@ -1047,10 +1128,16 @@ export default function Home() {
                                         type="number"
                                         className="form-input"
                                         placeholder={selectedProduct?.base_price_usd || '0.00'}
-                                        value={selectedProduct?.base_price_usd || ''}
-                                        disabled
-                                        style={{ background: 'var(--bg-secondary)' }}
+                                        value={customPrice}
+                                        onChange={(e) => { setCustomPrice(e.target.value); setPriceManuallyChanged(true); }}
+                                        step="0.01"
+                                        min="0"
                                     />
+                                    {selectedProduct?.base_price_usd && (
+                                        <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                                            Base: ${selectedProduct.base_price_usd} — Edit to override
+                                        </small>
+                                    )}
                                 </div>
                             </div>
 
@@ -1656,6 +1743,7 @@ export default function Home() {
                             onClick={handleCalculate}
                             disabled={calculating || containerCount === 0}
                             style={{ width: '100%', marginTop: 'var(--space-4)' }}
+                            data-calculate-btn="true"
                         >
                             {calculating ? (
                                 <>
@@ -1801,9 +1889,31 @@ export default function Home() {
 
 
                                 {/* Cost Breakdown */}
-                                <h4 style={{ marginTop: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
-                                    {selectedTier === 'exFactory' ? 'Ex-Factory' : selectedTier === 'fob' ? 'FOB' : 'CIF'} Cost Breakdown
-                                </h4>
+                                {result && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--space-6)', marginBottom: 'var(--space-4)' }}>
+                                        <h4 style={{ margin: 0 }}>
+                                            {selectedTier === 'exFactory' ? 'Ex-Factory' : selectedTier === 'fob' ? 'FOB' : 'CIF'} Cost Breakdown
+                                        </h4>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            {isEditingBreakdown && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCalculate} // "Save" just triggers recalc
+                                                    className="btn btn-primary btn-sm"
+                                                >
+                                                    Save & Recalculate
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={handleEditModeToggle}
+                                                className="btn btn-secondary btn-sm"
+                                            >
+                                                {isEditingBreakdown ? 'Close Edit' : 'Edit Bill'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                                 <table className="breakup-table">
                                     <thead>
                                         <tr>
@@ -1823,14 +1933,34 @@ export default function Home() {
                                         <tr>
                                             <td>Product ({formatNumber(result.quantity)} × {formatUSD(result.pricing.breakdown.productBase.perUnit)})</td>
                                             <td><span className="badge badge-info">Per Unit</span></td>
-                                            <td>{formatINR(result.pricing.breakdown.productBase.total)}</td>
+                                            <td>
+                                                {isEditingBreakdown ? (
+                                                    <input
+                                                        type="number"
+                                                        value={editedBreakdown.productBase}
+                                                        onChange={(e) => handleBreakdownChange('productBase', e.target.value)}
+                                                        className="form-input"
+                                                        style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                    />
+                                                ) : formatINR(result.pricing.breakdown.productBase.total)}
+                                            </td>
                                         </tr>
 
                                         {result.pricing.breakdown.innerPacking?.total > 0 && (
                                             <tr>
                                                 <td>Inner Packing ({formatNumber(result.pricing.breakdown.innerPacking.quantity)} × ₹{result.pricing.breakdown.innerPacking.perUnit}/unit)</td>
                                                 <td><span className="badge badge-info">Per Unit</span></td>
-                                                <td>{formatINR(result.pricing.breakdown.innerPacking.total)}</td>
+                                                <td>
+                                                    {isEditingBreakdown ? (
+                                                        <input
+                                                            type="number"
+                                                            value={editedBreakdown.innerPacking}
+                                                            onChange={(e) => handleBreakdownChange('innerPacking', e.target.value)}
+                                                            className="form-input"
+                                                            style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                        />
+                                                    ) : formatINR(result.pricing.breakdown.innerPacking.total)}
+                                                </td>
                                             </tr>
                                         )}
 
@@ -1839,7 +1969,17 @@ export default function Home() {
                                             <tr>
                                                 <td>Outer Box Packing ({result.pricing.breakdown.totalBoxes} boxes × ₹{result.pricing.breakdown.outerPacking.perBox}/box)</td>
                                                 <td><span className="badge badge-warning">Per Box</span></td>
-                                                <td>{formatINR(result.pricing.breakdown.outerPacking.total)}</td>
+                                                <td>
+                                                    {isEditingBreakdown ? (
+                                                        <input
+                                                            type="number"
+                                                            value={editedBreakdown.outerPacking}
+                                                            onChange={(e) => handleBreakdownChange('outerPacking', e.target.value)}
+                                                            className="form-input"
+                                                            style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                        />
+                                                    ) : formatINR(result.pricing.breakdown.outerPacking.total)}
+                                                </td>
                                             </tr>
                                         )}
 
@@ -1853,13 +1993,35 @@ export default function Home() {
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                                                         <span>💰</span>
                                                         <div>
-                                                            <div>Profit Margin ({customProfitRate}% on Total)</div>
+                                                            {isEditingBreakdown ? (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                                    Profit: <input
+                                                                        type="number"
+                                                                        value={customProfitRate}
+                                                                        onChange={(e) => setCustomProfitRate(e.target.value)}
+                                                                        className="form-input"
+                                                                        style={{ width: '70px', padding: '2px 5px', height: 'auto' }}
+                                                                    /> %
+                                                                </div>
+                                                            ) : (
+                                                                <div>Profit Margin ({customProfitRate}% on Total)</div>
+                                                            )}
                                                             <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Applied to entire bill</div>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td><span className="badge badge-dark">On Total</span></td>
-                                                <td>+{formatINR(result.pricing.breakdown.profitIncluded.amount)}</td>
+                                                <td>
+                                                    {isEditingBreakdown ? (
+                                                        <input
+                                                            type="number"
+                                                            value={editedBreakdown.profit}
+                                                            onChange={(e) => handleBreakdownChange('profit', e.target.value)}
+                                                            className="form-input"
+                                                            style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                        />
+                                                    ) : <>+{formatINR(result.pricing.breakdown.profitIncluded.amount)}</>}
+                                                </td>
                                             </tr>
                                         )}
 
@@ -1867,7 +2029,13 @@ export default function Home() {
                                         {selectedTier === 'exFactory' ? (
                                             <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>
                                                 <td colSpan="2">EX-FACTORY Total</td>
-                                                <td>{formatINR(result.pricing.exFactory.inr)}</td>
+                                                <td>
+                                                    {isEditingBreakdown ? (
+                                                        <span style={{ color: 'var(--success-600)' }}>
+                                                            {formatINR(getEditedTotal())}
+                                                        </span>
+                                                    ) : formatINR(result.pricing.exFactory.inr)}
+                                                </td>
                                             </tr>
                                         ) : (
                                             <tr style={{ background: 'var(--gray-50)', color: 'var(--text-muted)' }}>
@@ -1887,23 +2055,65 @@ export default function Home() {
 
                                                 {/* Inland Transport */}
                                                 <tr>
-                                                    <td>Inland Transport ({result.containerCount} × {formatINR(result.pricing.breakdown.localFreight.perContainer)})</td>
+                                                    <td>Inland Transport ({result.containerCount} × {
+                                                        isEditingBreakdown ? (
+                                                            <input
+                                                                type="number"
+                                                                value={localFreight}
+                                                                onChange={(e) => setLocalFreight(e.target.value)}
+                                                                className="form-input"
+                                                                style={{ width: '80px', display: 'inline-block', padding: '2px 5px', height: 'auto' }}
+                                                            />
+                                                        ) : (
+                                                            formatINR(result.pricing.breakdown.localFreight.perContainer)
+                                                        )
+                                                    })</td>
                                                     <td><span className="badge badge-warning">Per Container</span></td>
-                                                    <td>{formatINR(result.pricing.breakdown.localFreight.total)}</td>
+                                                    <td>
+                                                        {isEditingBreakdown ? (
+                                                            <input
+                                                                type="number"
+                                                                value={editedBreakdown.localFreight}
+                                                                onChange={(e) => handleBreakdownChange('localFreight', e.target.value)}
+                                                                className="form-input"
+                                                                style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                            />
+                                                        ) : formatINR(result.pricing.breakdown.localFreight.total)}
+                                                    </td>
                                                 </tr>
 
                                                 {/* CHA & Customs */}
                                                 <tr>
                                                     <td>CHA & Customs Processing</td>
                                                     <td><span className="badge badge-info">Per Shipment</span></td>
-                                                    <td>{formatINR(result.pricing.breakdown.port.cha + result.pricing.breakdown.port.customs)}</td>
+                                                    <td>
+                                                        {isEditingBreakdown ? (
+                                                            <input
+                                                                type="number"
+                                                                value={editedBreakdown.chaCustoms}
+                                                                onChange={(e) => handleBreakdownChange('chaCustoms', e.target.value)}
+                                                                className="form-input"
+                                                                style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                            />
+                                                        ) : formatINR(result.pricing.breakdown.port.cha + result.pricing.breakdown.port.customs)}
+                                                    </td>
                                                 </tr>
 
                                                 {/* Port Handling */}
                                                 <tr>
                                                     <td>Port & Terminal Handling ({result.containerCount}×)</td>
                                                     <td><span className="badge badge-warning">Per Container</span></td>
-                                                    <td>{formatINR(result.pricing.breakdown.port.handling)}</td>
+                                                    <td>
+                                                        {isEditingBreakdown ? (
+                                                            <input
+                                                                type="number"
+                                                                value={editedBreakdown.portHandling}
+                                                                onChange={(e) => handleBreakdownChange('portHandling', e.target.value)}
+                                                                className="form-input"
+                                                                style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                            />
+                                                        ) : formatINR(result.pricing.breakdown.port.handling)}
+                                                    </td>
                                                 </tr>
 
                                                 {/* Container Stuffing */}
@@ -1911,7 +2121,17 @@ export default function Home() {
                                                     <tr>
                                                         <td>Container Stuffing ({result.containerCount}×)</td>
                                                         <td><span className="badge badge-warning">Per Container</span></td>
-                                                        <td>{formatINR(result.pricing.breakdown.containerStuffing.total)}</td>
+                                                        <td>
+                                                            {isEditingBreakdown ? (
+                                                                <input
+                                                                    type="number"
+                                                                    value={editedBreakdown.containerStuffing}
+                                                                    onChange={(e) => handleBreakdownChange('containerStuffing', e.target.value)}
+                                                                    className="form-input"
+                                                                    style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                                />
+                                                            ) : formatINR(result.pricing.breakdown.containerStuffing.total)}
+                                                        </td>
                                                     </tr>
                                                 )}
 
@@ -1920,7 +2140,17 @@ export default function Home() {
                                                     <tr>
                                                         <td>Export Packing/Palletization ({result.containerCount}×)</td>
                                                         <td><span className="badge badge-warning">Per Container</span></td>
-                                                        <td>{formatINR(result.pricing.breakdown.exportPacking.total)}</td>
+                                                        <td>
+                                                            {isEditingBreakdown ? (
+                                                                <input
+                                                                    type="number"
+                                                                    value={editedBreakdown.exportPacking}
+                                                                    onChange={(e) => handleBreakdownChange('exportPacking', e.target.value)}
+                                                                    className="form-input"
+                                                                    style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                                />
+                                                            ) : formatINR(result.pricing.breakdown.exportPacking.total)}
+                                                        </td>
                                                     </tr>
                                                 )}
 
@@ -1937,7 +2167,13 @@ export default function Home() {
                                                 {selectedTier === 'fob' ? (
                                                     <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>
                                                         <td colSpan="2">FOB Total</td>
-                                                        <td>{formatINR(result.pricing.fob.inr)}</td>
+                                                        <td>
+                                                            {isEditingBreakdown ? (
+                                                                <span style={{ color: 'var(--success-600)' }}>
+                                                                    {formatINR(getEditedTotal())}
+                                                                </span>
+                                                            ) : formatINR(result.pricing.fob.inr)}
+                                                        </td>
                                                     </tr>
                                                 ) : (
                                                     <tr style={{ background: 'var(--bg-glass)', fontWeight: 'var(--font-semibold)' }}>
@@ -1960,43 +2196,113 @@ export default function Home() {
                                                 {/* Sea Freight */}
                                                 <tr>
                                                     <td>
-                                                        Sea Freight ({result.containerCount} × {formatUSD(result.pricing.breakdown.freight.perContainer)})
+                                                        Sea Freight ({result.containerCount} × {
+                                                            isEditingBreakdown ? (
+                                                                <input
+                                                                    type="number"
+                                                                    value={seaFreight}
+                                                                    onChange={(e) => setSeaFreight(e.target.value)}
+                                                                    className="form-input"
+                                                                    style={{ width: '80px', display: 'inline-block', padding: '2px 5px', height: 'auto' }}
+                                                                />
+                                                            ) : (
+                                                                formatUSD(result.pricing.breakdown.freight.perContainer)
+                                                            )
+                                                        })
                                                         <br />
                                                         <small style={{ color: 'var(--text-muted)' }}>
                                                             + {result.pricing.breakdown.freight.gstRate}% GST
                                                         </small>
                                                     </td>
                                                     <td><span className="badge badge-warning">Per Container</span></td>
-                                                    <td>{formatINR(result.pricing.breakdown.freight.totalWithGST)}</td>
+                                                    <td>
+                                                        {isEditingBreakdown ? (
+                                                            <input
+                                                                type="number"
+                                                                value={editedBreakdown.seaFreight}
+                                                                onChange={(e) => handleBreakdownChange('seaFreight', e.target.value)}
+                                                                className="form-input"
+                                                                style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                            />
+                                                        ) : formatINR(result.pricing.breakdown.freight.totalWithGST)}
+                                                    </td>
                                                 </tr>
 
                                                 {/* Marine Insurance with ICC Type */}
                                                 <tr>
                                                     <td>
-                                                        Marine Insurance ({result.pricing.breakdown.insurance.type} @ {result.pricing.breakdown.insurance.rate}%)
+                                                        Marine Insurance ({result.pricing.breakdown.insurance.type} @ {
+                                                            isEditingBreakdown ? (
+                                                                <input
+                                                                    type="number"
+                                                                    value={marineInsuranceRate}
+                                                                    onChange={(e) => setMarineInsuranceRate(e.target.value)}
+                                                                    className="form-input"
+                                                                    style={{ width: '60px', display: 'inline-block', padding: '2px 5px', height: 'auto' }}
+                                                                />
+                                                            ) : (
+                                                                result.pricing.breakdown.insurance.rate
+                                                            )
+                                                        }%)
                                                     </td>
                                                     <td><span className="badge badge-info">Percentage</span></td>
-                                                    <td>{formatINR(result.pricing.breakdown.insurance.total)}</td>
+                                                    <td>
+                                                        {isEditingBreakdown ? (
+                                                            <input
+                                                                type="number"
+                                                                value={editedBreakdown.marineInsurance}
+                                                                onChange={(e) => handleBreakdownChange('marineInsurance', e.target.value)}
+                                                                className="form-input"
+                                                                style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                            />
+                                                        ) : formatINR(result.pricing.breakdown.insurance.total)}
+                                                    </td>
                                                 </tr>
 
                                                 {/* ECGC */}
                                                 <tr>
                                                     <td>ECGC Premium ({result.pricing.breakdown.ecgc.rate}%)</td>
                                                     <td><span className="badge badge-info">Percentage</span></td>
-                                                    <td>{formatINR(result.pricing.breakdown.ecgc.total)}</td>
+                                                    <td>
+                                                        {isEditingBreakdown ? (
+                                                            <input
+                                                                type="number"
+                                                                value={editedBreakdown.ecgc}
+                                                                onChange={(e) => handleBreakdownChange('ecgc', e.target.value)}
+                                                                className="form-input"
+                                                                style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                            />
+                                                        ) : formatINR(result.pricing.breakdown.ecgc.total)}
+                                                    </td>
                                                 </tr>
 
                                                 {/* Bank Charges */}
                                                 <tr>
                                                     <td>Bank Charges ({result.pricing.breakdown.bankCharges.rate}%)</td>
                                                     <td><span className="badge badge-info">Percentage</span></td>
-                                                    <td>{formatINR(result.pricing.breakdown.bankCharges.total)}</td>
+                                                    <td>
+                                                        {isEditingBreakdown ? (
+                                                            <input
+                                                                type="number"
+                                                                value={editedBreakdown.bankCharges}
+                                                                onChange={(e) => handleBreakdownChange('bankCharges', e.target.value)}
+                                                                className="form-input"
+                                                                style={{ width: '120px', padding: '2px 5px', height: 'auto', textAlign: 'right' }}
+                                                            />
+                                                        ) : formatINR(result.pricing.breakdown.bankCharges.total)}
+                                                    </td>
                                                 </tr>
 
                                                 {/* CIF Total */}
                                                 <tr style={{ background: 'var(--gray-100)', fontWeight: 'var(--font-bold)' }}>
                                                     <td colSpan="2">CIF Total</td>
-                                                    <td>{formatINR(result.pricing.cif.inr)}</td>
+                                                    <td>
+                                                        {isEditingBreakdown ? (
+                                                            <span style={{ color: 'var(--success-600)' }}>
+                                                                {formatINR(getEditedTotal())}
+                                                            </span>
+                                                        ) : formatINR(result.pricing.cif.inr)}
+                                                    </td>
                                                 </tr>
                                             </>
                                         )}
