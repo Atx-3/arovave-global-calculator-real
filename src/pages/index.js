@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import {
     getProducts,
@@ -339,23 +339,10 @@ export default function Home() {
         }
     }, [selectedProduct, selectedLocation]);
 
-    // Track if this is initial price set vs user edit
-    const [priceManuallyChanged, setPriceManuallyChanged] = useState(false);
-
-    // Trigger recalculation state
-    const [recalcTrigger, setRecalcTrigger] = useState(0);
-
-    // Auto-recalculate when customPrice changes manually (if a previous result exists)
-    useEffect(() => {
-        // Only trigger recalc if result exists and price was manually changed
-        if (result && priceManuallyChanged) {
-            const debounceTimer = setTimeout(() => {
-                // Increment trigger to force recalculation
-                setRecalcTrigger(prev => prev + 1);
-            }, 600);
-            return () => clearTimeout(debounceTimer);
-        }
-    }, [customPrice, priceManuallyChanged]);
+    // Ref for debounced price recalculation timer
+    const priceRecalcTimerRef = useRef(null);
+    const hasCalculatedOnceRef = useRef(false);
+    const handleCalculateRef = useRef(null);
 
     // Calculate container count when quantity, boxes per container, or box weight changes
     useEffect(() => {
@@ -684,6 +671,7 @@ export default function Home() {
                 certifications: selectedCertifications.map(c => c.name),
                 selectedTier: selectedTier // Pass tier for PDF filtering
             });
+            hasCalculatedOnceRef.current = true;
         } catch (err) {
             console.error('Calculation error:', err);
             setError(`Error calculating prices: ${err.message}. Check console for details.`);
@@ -692,12 +680,20 @@ export default function Home() {
         setCalculating(false);
     };
 
-    // Effect to actually call handleCalculate when recalcTrigger changes (placed AFTER handleCalculate is defined)
-    useEffect(() => {
-        if (recalcTrigger > 0) {
-            handleCalculate();
+    // Always keep ref pointing to latest handleCalculate
+    handleCalculateRef.current = handleCalculate;
+
+    // Helper: debounced recalculation when price changes
+    const debouncedRecalculate = () => {
+        if (priceRecalcTimerRef.current) {
+            clearTimeout(priceRecalcTimerRef.current);
         }
-    }, [recalcTrigger]);
+        if (hasCalculatedOnceRef.current) {
+            priceRecalcTimerRef.current = setTimeout(() => {
+                handleCalculateRef.current();
+            }, 600);
+        }
+    };
 
     // Open client details modal for PDF download
     const handleDownloadPDF = () => {
@@ -1129,7 +1125,7 @@ export default function Home() {
                                         className="form-input"
                                         placeholder={selectedProduct?.base_price_usd || '0.00'}
                                         value={customPrice}
-                                        onChange={(e) => { setCustomPrice(e.target.value); setPriceManuallyChanged(true); }}
+                                        onChange={(e) => { setCustomPrice(e.target.value); debouncedRecalculate(); }}
                                         step="0.01"
                                         min="0"
                                     />
