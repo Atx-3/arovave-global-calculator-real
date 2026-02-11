@@ -85,6 +85,10 @@ export default function Home() {
     const [exwExtraCharges, setExwExtraCharges] = useState([]); // Array of {name, amount} for EXW extra charges
     const [cifExtraCharges, setCifExtraCharges] = useState([]); // Array of {name, amount} for CIF extra charges
 
+    // History State
+    const [showHistory, setShowHistory] = useState(false);
+    const [calculationHistory, setCalculationHistory] = useState([]);
+
     // Container Calculator Modal State
     const [showCalcModal, setShowCalcModal] = useState(false);
     const [boxLength, setBoxLength] = useState('');
@@ -672,6 +676,55 @@ export default function Home() {
                 selectedTier: selectedTier // Pass tier for PDF filtering
             });
             hasCalculatedOnceRef.current = true;
+
+            // Save to history
+            const historyEntry = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                inputs: {
+                    selectedProductId: selectedProduct?.id,
+                    productName: selectedProduct?.name,
+                    quantity,
+                    customPrice,
+                    selectedTier,
+                    selectedContainerTypeCode: selectedContainerType?.code || '',
+                    boxesPerContainer,
+                    boxWeightMain,
+                    unitsPerBox,
+                    unitWeight,
+                    selectedLocationId: selectedLocation,
+                    factoryPincode,
+                    selectedPortId: selectedPort,
+                    distanceKm,
+                    selectedCountryId: selectedCountry,
+                    selectedDestPortId: selectedDestPort,
+                    customProfitRate,
+                    innerPackingCost,
+                    outerPackingCost,
+                    containerStuffingCharge,
+                    exportPackingCost,
+                    seaFreight,
+                    marineInsuranceRate,
+                    indiaInsuranceRate,
+                    paymentTerms,
+                    extraCharges,
+                    exwExtraCharges,
+                    cifExtraCharges,
+                },
+                summary: {
+                    productName: selectedProduct?.name,
+                    quantity: parseFloat(quantity),
+                    tier: selectedTier,
+                    totalINR: pricing.tiers?.exFactory?.perUnit?.inr || pricing.tiers?.fob?.perUnit?.inr || pricing.tiers?.cif?.perUnit?.inr || 0,
+                    totalUSD: pricing.tiers?.exFactory?.perUnit?.usd || pricing.tiers?.fob?.perUnit?.usd || pricing.tiers?.cif?.perUnit?.usd || 0,
+                }
+            };
+            try {
+                const existing = JSON.parse(localStorage.getItem('calcHistory') || '[]');
+                const updated = [historyEntry, ...existing].slice(0, 50); // Keep last 50
+                localStorage.setItem('calcHistory', JSON.stringify(updated));
+                setCalculationHistory(updated);
+            } catch (e) { console.error('Failed to save history:', e); }
         } catch (err) {
             console.error('Calculation error:', err);
             setError(`Error calculating prices: ${err.message}. Check console for details.`);
@@ -693,6 +746,69 @@ export default function Home() {
                 handleCalculateRef.current();
             }, 600);
         }
+    };
+
+    // Load a past calculation into the form
+    const loadFromHistory = (entry) => {
+        const inp = entry.inputs;
+        // Set tier first
+        if (inp.selectedTier) setSelectedTier(inp.selectedTier);
+        // Find and set the product
+        const prod = products.find(p => p.id === inp.selectedProductId);
+        if (prod) {
+            setSelectedProduct(prod);
+            setCustomPrice(inp.customPrice || prod.base_price_usd?.toString() || '');
+        }
+        // Set quantities
+        if (inp.quantity) setQuantity(inp.quantity);
+        if (inp.boxesPerContainer) setBoxesPerContainer(inp.boxesPerContainer);
+        if (inp.boxWeightMain) setBoxWeightMain(inp.boxWeightMain);
+        if (inp.unitsPerBox) setUnitsPerBox(inp.unitsPerBox);
+        if (inp.unitWeight) setUnitWeight(inp.unitWeight);
+        // Locations
+        if (inp.selectedLocationId) setSelectedLocation(inp.selectedLocationId);
+        if (inp.factoryPincode) setFactoryPincode(inp.factoryPincode);
+        if (inp.selectedPortId) setSelectedPort(inp.selectedPortId);
+        if (inp.distanceKm) setDistanceKm(inp.distanceKm);
+        if (inp.selectedCountryId) setSelectedCountry(inp.selectedCountryId);
+        if (inp.selectedDestPortId) setSelectedDestPort(inp.selectedDestPortId);
+        // Container type
+        if (inp.selectedContainerTypeCode) {
+            const ct = containerTypes.find(c => c.code === inp.selectedContainerTypeCode);
+            if (ct) setSelectedContainerType(ct);
+        }
+        // Charges
+        if (inp.customProfitRate) setCustomProfitRate(inp.customProfitRate);
+        if (inp.innerPackingCost) setInnerPackingCost(inp.innerPackingCost);
+        if (inp.outerPackingCost) setOuterPackingCost(inp.outerPackingCost);
+        if (inp.containerStuffingCharge) setContainerStuffingCharge(inp.containerStuffingCharge);
+        if (inp.exportPackingCost) setExportPackingCost(inp.exportPackingCost);
+        if (inp.seaFreight) setSeaFreight(inp.seaFreight);
+        if (inp.marineInsuranceRate) setMarineInsuranceRate(inp.marineInsuranceRate);
+        if (inp.indiaInsuranceRate) setIndiaInsuranceRate(inp.indiaInsuranceRate);
+        if (inp.paymentTerms) setPaymentTerms(inp.paymentTerms);
+        // Extra charges arrays
+        if (inp.extraCharges) setExtraCharges(inp.extraCharges);
+        if (inp.exwExtraCharges) setExwExtraCharges(inp.exwExtraCharges);
+        if (inp.cifExtraCharges) setCifExtraCharges(inp.cifExtraCharges);
+        // Clear result so user recalculates
+        setResult(null);
+        setShowHistory(false);
+    };
+
+    // Delete a history entry
+    const deleteHistoryEntry = (id) => {
+        try {
+            const updated = calculationHistory.filter(h => h.id !== id);
+            localStorage.setItem('calcHistory', JSON.stringify(updated));
+            setCalculationHistory(updated);
+        } catch (e) { console.error('Failed to delete history:', e); }
+    };
+
+    // Clear all history
+    const clearAllHistory = () => {
+        localStorage.removeItem('calcHistory');
+        setCalculationHistory([]);
     };
 
     // Open client details modal for PDF download
@@ -971,6 +1087,20 @@ export default function Home() {
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => {
+                                    try {
+                                        const h = JSON.parse(localStorage.getItem('calcHistory') || '[]');
+                                        setCalculationHistory(h);
+                                    } catch (e) { }
+                                    setShowHistory(true);
+                                }}
+                                title="View past calculations"
+                            >
+                                📋 History
+                            </button>
                             <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
@@ -2605,6 +2735,75 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
                     </div>
                 )}
             </div>
+            {/* History Modal */}
+            {showHistory && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px'
+                }} onClick={() => setShowHistory(false)}>
+                    <div style={{
+                        background: 'var(--bg-primary, #fff)', borderRadius: 'var(--radius-lg, 12px)',
+                        width: '100%', maxWidth: '600px', maxHeight: '80vh', overflow: 'hidden',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column'
+                    }} onClick={e => e.stopPropagation()}>
+                        <div style={{
+                            padding: '16px 24px',
+                            borderBottom: '1px solid var(--gray-200, #e5e7eb)',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: '18px' }}>📋 Calculation History</h3>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                {calculationHistory.length > 0 && (
+                                    <button className="btn btn-secondary btn-sm" onClick={clearAllHistory}
+                                        style={{ fontSize: '12px', color: 'var(--error, red)' }}
+                                    >Clear All</button>
+                                )}
+                                <button className="btn btn-secondary btn-sm" onClick={() => setShowHistory(false)}>✕</button>
+                            </div>
+                        </div>
+                        <div style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
+                            {calculationHistory.length === 0 ? (
+                                <div style={{ textAlign: 'center', color: 'var(--text-muted, #999)', padding: '40px 0' }}>
+                                    <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
+                                    <p>No calculations yet.</p>
+                                    <p style={{ fontSize: '13px' }}>Your calculations will appear here after you use the calculator.</p>
+                                </div>
+                            ) : (
+                                calculationHistory.map(entry => (
+                                    <div key={entry.id} style={{
+                                        border: '1px solid var(--gray-200, #e5e7eb)',
+                                        borderRadius: '8px',
+                                        padding: '12px 16px', marginBottom: '10px',
+                                        cursor: 'pointer', transition: 'all 0.15s',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                    }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-50, #f9fafb)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <div onClick={() => loadFromHistory(entry)} style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
+                                                {entry.summary?.productName || entry.inputs?.productName || 'Unknown Product'}
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: 'var(--text-muted, #999)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                                <span>📦 {entry.summary?.quantity?.toLocaleString() || '?'} KG</span>
+                                                <span>🏷️ {entry.inputs?.selectedTier === 'exFactory' ? 'EXW' : entry.inputs?.selectedTier === 'fob' ? 'FOB' : 'CIF'}</span>
+                                                <span>💰 ${entry.inputs?.customPrice || '?'}/kg</span>
+                                                <span>🕒 {new Date(entry.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); deleteHistoryEntry(entry.id); }}
+                                            style={{ color: 'var(--error, red)', background: 'none', border: 'none', padding: '4px 8px', fontSize: '16px', cursor: 'pointer' }}
+                                            title="Delete this entry"
+                                        >🗑️</button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
