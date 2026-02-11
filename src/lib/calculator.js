@@ -215,7 +215,7 @@ export function calculateExportPricing({
     // ============================================
     // STEP 3: EX-FACTORY COST (Product + Packaging + EXW Extras)
     // ============================================
-    const basePrice = parseFloat(product.base_price_usd) || 0;
+    const basePrice = (customPriceUsd !== null && customPriceUsd > 0) ? customPriceUsd : (parseFloat(product.base_price_usd) || 0);
     const exFactoryProductUSD = basePrice * quantity;
     const exFactoryProductINR = convertToINR(exFactoryProductUSD, exchangeRate, 0);
 
