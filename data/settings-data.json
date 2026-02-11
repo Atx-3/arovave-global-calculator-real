@@ -5,7 +5,7 @@
       "name": "Premium Basmati Rice",
       "hsn_code": "10063020",
       "unit": "KG",
-      "base_price_usd": 1.5,
+      "base_price_usd": 1,
       "qty_per_20ft": 18000,
       "qty_per_40ft": 26000,
       "active": true
@@ -89,6 +89,17 @@
       "qty_per_40ft": 27999,
       "active": true,
       "id": 9
+    },
+    {
+      "name": "gtsrue5ryt",
+      "hsn_code": "1234567",
+      "unit": "KG",
+      "base_price_usd": 123,
+      "qty_per_20ft": 234567,
+      "qty_per_40ft": 238,
+      "active": true,
+      "linked_manufacturers": [],
+      "id": 10
     }
   ],
   "locations": [
@@ -202,6 +213,13 @@
       "code": "AU",
       "ecgc_risk_category": "A",
       "ecgc_rate_percent": 0.3
+    },
+    {
+      "name": "AERSTYFG",
+      "code": "1234",
+      "ecgc_risk_category": "A",
+      "ecgc_rate_percent": 0.3,
+      "id": 8
     }
   ],
   "destPorts": [

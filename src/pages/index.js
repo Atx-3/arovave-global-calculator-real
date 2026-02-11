@@ -1272,13 +1272,13 @@ export default function Home() {
                                 <div>
                                     <label className="form-label">Unit Weight (kg) <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>(Optional)</span></label>
                                     <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="decimal"
                                         className="form-input"
                                         placeholder="e.g., 0.5"
                                         value={unitWeight}
-                                        onChange={(e) => { setUnitWeight(e.target.value); setResult(null); }}
+                                        onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) { setUnitWeight(v); setResult(null); } }}
                                         min="0"
-                                        step="0.01"
                                     />
                                     <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>If Quantity is Total Weight, enter weight per unit here.</small>
                                 </div>
