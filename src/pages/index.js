@@ -122,23 +122,23 @@ export default function Home() {
 
     // Initialize editedBreakdown when entering edit mode
     const handleEditModeToggle = () => {
-        if (!isEditingBreakdown && calcResult) {
+        if (!isEditingBreakdown && result) {
             // Entering edit mode - populate with current calculated values
-            const result = calcResult;
+            const r = result;
             setEditedBreakdown({
-                productBase: result.pricing.breakdown.productBase?.total || 0,
-                innerPacking: result.pricing.breakdown.innerPacking?.total || 0,
-                outerPacking: result.pricing.breakdown.outerPacking?.total || 0,
-                profit: result.pricing.breakdown.profitIncluded?.amount || 0,
-                localFreight: result.pricing.breakdown.localFreight?.total || 0,
-                chaCustoms: (result.pricing.breakdown.port?.cha || 0) + (result.pricing.breakdown.port?.customs || 0),
-                portHandling: result.pricing.breakdown.port?.handling || 0,
-                containerStuffing: result.pricing.breakdown.containerStuffing?.total || 0,
-                exportPacking: result.pricing.breakdown.exportPacking?.total || 0,
-                seaFreight: result.pricing.breakdown.freight?.totalWithGST || 0,
-                marineInsurance: result.pricing.breakdown.insurance?.total || 0,
-                ecgc: result.pricing.breakdown.ecgc?.total || 0,
-                bankCharges: result.pricing.breakdown.bankCharges?.total || 0
+                productBase: r.pricing.breakdown.productBase?.total || 0,
+                innerPacking: r.pricing.breakdown.innerPacking?.total || 0,
+                outerPacking: r.pricing.breakdown.outerPacking?.total || 0,
+                profit: r.pricing.breakdown.profitIncluded?.amount || 0,
+                localFreight: r.pricing.breakdown.localFreight?.total || 0,
+                chaCustoms: (r.pricing.breakdown.port?.cha || 0) + (r.pricing.breakdown.port?.customs || 0),
+                portHandling: r.pricing.breakdown.port?.handling || 0,
+                containerStuffing: r.pricing.breakdown.containerStuffing?.total || 0,
+                exportPacking: r.pricing.breakdown.exportPacking?.total || 0,
+                seaFreight: r.pricing.breakdown.freight?.totalWithGST || 0,
+                marineInsurance: r.pricing.breakdown.insurance?.total || 0,
+                ecgc: r.pricing.breakdown.ecgc?.total || 0,
+                bankCharges: r.pricing.breakdown.bankCharges?.total || 0
             });
         }
         setIsEditingBreakdown(!isEditingBreakdown);
