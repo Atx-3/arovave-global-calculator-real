@@ -104,9 +104,34 @@
   ],
   "locations": [
     {
+      "name": "Delhi NCR",
       "id": 1,
-      "name": "Test Location",
-      "code": "TL"
+      "pincode": "110001",
+      "state": "Delhi"
+    },
+    {
+      "name": "Mumbai",
+      "id": 2,
+      "pincode": "400001",
+      "state": "Maharashtra"
+    },
+    {
+      "name": "Chennai",
+      "id": 3,
+      "pincode": "600001",
+      "state": "Tamil Nadu"
+    },
+    {
+      "name": "Bangalore",
+      "id": 4,
+      "pincode": "560001",
+      "state": "Karnataka"
+    },
+    {
+      "name": "Ahmedabad",
+      "id": 5,
+      "pincode": "380001",
+      "state": "Gujarat"
     }
   ],
   "ports": [
