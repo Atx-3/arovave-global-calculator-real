@@ -5,7 +5,7 @@
       "name": "Premium Basmati Rice",
       "hsn_code": "10063020",
       "unit": "KG",
-      "base_price_usd": 1,
+      "base_price_usd": 5,
       "qty_per_20ft": 18000,
       "qty_per_40ft": 26000,
       "active": true

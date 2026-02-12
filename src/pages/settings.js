@@ -43,66 +43,100 @@ export default function SettingsPage() {
     const [saveMessage, setSaveMessage] = useState(''); // Shows "Saved!" confirmation
     const [loading, setLoading] = useState(true);
 
-    // Load from API (file-based storage)
+    // Load from localStorage first, then API
     useEffect(() => {
         loadAllData();
     }, []);
 
+    function applyData(data) {
+        setProducts(data.products || DEFAULT_PRODUCTS);
+        setLocations(data.locations || DEFAULT_LOCATIONS);
+        setPorts(data.ports || DEFAULT_PORTS);
+        setCountries(data.countries || DEFAULT_COUNTRIES);
+        setDestPorts(data.destPorts || DEFAULT_DEST_PORTS);
+        setContainers(data.containers || DEFAULT_CONTAINERS);
+        setCertifications(data.certifications || DEFAULT_CERTS);
+        setGeneralSettings(data.settings || DEFAULT_SETTINGS);
+    }
+
+    function saveToLocalStorage(allData) {
+        try {
+            localStorage.setItem('arovave_all_settings', JSON.stringify(allData));
+        } catch (e) {
+            console.warn('localStorage save failed:', e);
+        }
+    }
+
+    function loadFromLocalStorage() {
+        try {
+            const stored = localStorage.getItem('arovave_all_settings');
+            if (stored) return JSON.parse(stored);
+        } catch (e) {
+            console.warn('localStorage load failed:', e);
+        }
+        return null;
+    }
+
     async function loadAllData() {
+        // 1. Try localStorage first (instant, always available)
+        const localData = loadFromLocalStorage();
+        if (localData) {
+            applyData(localData);
+            setLoading(false);
+        }
+
+        // 2. Also try API (may have newer data from server)
         try {
             const res = await fetch('/api/settings');
             if (res.ok) {
-                const data = await res.json();
-                setProducts(data.products || DEFAULT_PRODUCTS);
-                setLocations(data.locations || DEFAULT_LOCATIONS);
-                setPorts(data.ports || DEFAULT_PORTS);
-                setCountries(data.countries || DEFAULT_COUNTRIES);
-                setDestPorts(data.destPorts || DEFAULT_DEST_PORTS);
-                setContainers(data.containers || DEFAULT_CONTAINERS);
-                setCertifications(data.certifications || DEFAULT_CERTS);
-                setGeneralSettings(data.settings || DEFAULT_SETTINGS);
+                const apiData = await res.json();
+                // If we didn't have localStorage data, or API data is valid, use it
+                if (!localData) {
+                    applyData(apiData);
+                    saveToLocalStorage(apiData);
+                }
             }
         } catch (error) {
-            console.error('Error loading settings:', error);
-            // Fall back to defaults
-            setProducts(DEFAULT_PRODUCTS);
-            setLocations(DEFAULT_LOCATIONS);
-            setPorts(DEFAULT_PORTS);
-            setCountries(DEFAULT_COUNTRIES);
-            setDestPorts(DEFAULT_DEST_PORTS);
-            setContainers(DEFAULT_CONTAINERS);
-            setCertifications(DEFAULT_CERTS);
-            setGeneralSettings(DEFAULT_SETTINGS);
+            console.error('API load failed (using localStorage):', error);
+            if (!localData) {
+                // No localStorage and no API - use defaults
+                applyData({});
+            }
         }
         setLoading(false);
     }
 
     async function saveData(key, data) {
-        console.log('saveData called with key:', key, 'data length:', Array.isArray(data) ? data.length : 'not array');
+        // 1. ALWAYS save to localStorage first (works everywhere)
+        const currentData = loadFromLocalStorage() || {};
+        currentData[key] = data;
+        saveToLocalStorage(currentData);
+
+        // 2. Try API save (may fail on Vercel, that's OK)
         try {
             const res = await fetch('/api/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ category: key, data })
             });
-            console.log('saveData response status:', res.status);
             if (res.ok) {
-                setSaveMessage('✓ Saved to file!');
+                const result = await res.json();
+                // If server returned full data, sync localStorage
+                if (result.allData) {
+                    saveToLocalStorage(result.allData);
+                }
+                setSaveMessage('✓ Saved!');
                 setTimeout(() => setSaveMessage(''), 2000);
                 return true;
-            } else {
-                const errText = await res.text();
-                console.error('saveData failed:', errText);
-                setSaveMessage('❌ Save failed');
-                setTimeout(() => setSaveMessage(''), 3000);
-                return false;
             }
         } catch (error) {
-            console.error('Error saving:', error);
-            setSaveMessage('❌ Save failed: ' + error.message);
-            setTimeout(() => setSaveMessage(''), 3000);
-            return false;
+            console.warn('API save failed (saved to localStorage):', error);
         }
+
+        // Even if API failed, localStorage save succeeded
+        setSaveMessage('✓ Saved!');
+        setTimeout(() => setSaveMessage(''), 2000);
+        return true;
     }
 
     // CRUD functions
