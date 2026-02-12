@@ -105,33 +105,15 @@
   "locations": [
     {
       "id": 1,
-      "name": "Delhi NCR",
-      "pincode": "110001",
-      "state": "Delhi"
+      "name": "Unjha",
+      "state": "Gujarat",
+      "pincode": "384170"
     },
     {
-      "id": 2,
-      "name": "Mumbai",
-      "pincode": "400001",
-      "state": "Maharashtra"
-    },
-    {
-      "id": 3,
-      "name": "Chennai",
-      "pincode": "600001",
-      "state": "Tamil Nadu"
-    },
-    {
-      "id": 4,
-      "name": "Bangalore",
-      "pincode": "560001",
-      "state": "Karnataka"
-    },
-    {
-      "id": 5,
-      "name": "Ahmedabad",
-      "pincode": "380001",
-      "state": "Gujarat"
+      "id": 99,
+      "name": "Test City",
+      "state": "Test State",
+      "pincode": "123456"
     }
   ],
   "ports": [
