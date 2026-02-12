@@ -588,6 +588,7 @@ export default function SettingsPage() {
                                     <select className="form-select" value={formData.charge_type || ''} onChange={e => setFormData({ ...formData, charge_type: e.target.value })}>
                                         <option value="per_shipment">Per Shipment</option>
                                         <option value="per_container">Per Container</option>
+                                        <option value="by_exporter">By Exporter</option>
                                     </select>
                                 </div>
                             </>
