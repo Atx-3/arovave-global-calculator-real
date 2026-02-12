@@ -110,10 +110,34 @@
       "pincode": "384170"
     },
     {
-      "id": 99,
-      "name": "Test City",
-      "state": "Test State",
-      "pincode": "123456"
+      "id": 2,
+      "name": "Delhi NCR",
+      "state": "Delhi",
+      "pincode": "110001"
+    },
+    {
+      "id": 3,
+      "name": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "400001"
+    },
+    {
+      "id": 4,
+      "name": "Chennai",
+      "state": "Tamil Nadu",
+      "pincode": "600001"
+    },
+    {
+      "id": 5,
+      "name": "Bangalore",
+      "state": "Karnataka",
+      "pincode": "560001"
+    },
+    {
+      "id": 6,
+      "name": "Ahmedabad",
+      "state": "Gujarat",
+      "pincode": "380001"
     }
   ],
   "ports": [
@@ -152,56 +176,64 @@
       "name": "United Arab Emirates",
       "code": "AE",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.35
+      "ecgc_rate_percent": 0.35,
+      "sea_freight_usd": 800
     },
     {
       "id": 2,
       "name": "Saudi Arabia",
       "code": "SA",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.4
+      "ecgc_rate_percent": 0.4,
+      "sea_freight_usd": 900
     },
     {
       "id": 3,
       "name": "United States",
       "code": "US",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.3
+      "ecgc_rate_percent": 0.3,
+      "sea_freight_usd": 2200
     },
     {
       "id": 4,
       "name": "United Kingdom",
       "code": "GB",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.3
+      "ecgc_rate_percent": 0.3,
+      "sea_freight_usd": 1800
     },
     {
       "id": 5,
       "name": "Germany",
       "code": "DE",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.3
+      "ecgc_rate_percent": 0.3,
+      "sea_freight_usd": 1800
     },
     {
       "id": 6,
       "name": "Singapore",
       "code": "SG",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.25
+      "ecgc_rate_percent": 0.25,
+      "sea_freight_usd": 600
     },
     {
       "id": 7,
       "name": "Australia",
       "code": "AU",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.3
+      "ecgc_rate_percent": 0.3,
+      "sea_freight_usd": 1500
     },
     {
+      "id": 8,
       "name": "AERSTYFG",
       "code": "1234",
       "ecgc_risk_category": "A",
       "ecgc_rate_percent": 0.3,
-      "id": 8
+      "sea_freight_usd": 0
     }
   ],
   "destPorts": [

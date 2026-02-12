@@ -78,23 +78,30 @@ export default function SettingsPage() {
     }
 
     async function saveData(key, data) {
+        console.log('saveData called with key:', key, 'data length:', Array.isArray(data) ? data.length : 'not array');
         try {
             const res = await fetch('/api/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ category: key, data })
             });
+            console.log('saveData response status:', res.status);
             if (res.ok) {
                 setSaveMessage('✓ Saved to file!');
                 setTimeout(() => setSaveMessage(''), 2000);
+                return true;
             } else {
+                const errText = await res.text();
+                console.error('saveData failed:', errText);
                 setSaveMessage('❌ Save failed');
                 setTimeout(() => setSaveMessage(''), 3000);
+                return false;
             }
         } catch (error) {
             console.error('Error saving:', error);
-            setSaveMessage('❌ Save failed');
+            setSaveMessage('❌ Save failed: ' + error.message);
             setTimeout(() => setSaveMessage(''), 3000);
+            return false;
         }
     }
 
@@ -126,7 +133,10 @@ export default function SettingsPage() {
         saveData(type, newData);
     }
 
-    function handleSave() {
+    async function handleSave() {
+        console.log('handleSave called, activeTab:', activeTab);
+        console.log('editingItem:', editingItem);
+        console.log('formData:', formData);
         const dataMap = { products, locations, ports, countries, destPorts, containers, certifications };
         const setterMap = {
             products: setProducts, locations: setLocations, ports: setPorts,
@@ -146,9 +156,16 @@ export default function SettingsPage() {
             newData = [...dataMap[activeTab], { ...formData, id: newId }];
         }
 
-        setterMap[activeTab](newData);
-        saveData(activeTab, newData);
-        setShowModal(false);
+        console.log('About to save, newData length:', newData.length);
+        const saved = await saveData(activeTab, newData);
+        console.log('Save result:', saved);
+        if (saved) {
+            setterMap[activeTab](newData);
+            setShowModal(false);
+            console.log('Modal closed, data updated');
+        } else {
+            console.error('Save failed, modal stays open');
+        }
     }
 
     function handleSettingChange(key, value) {

@@ -71,6 +71,7 @@ export default function Home() {
     const [outerPackingCost, setOuterPackingCost] = useState(''); // Outer packing cost per box (INR)
     const [unitsPerBox, setUnitsPerBox] = useState(''); // No. of units in outer box
     const [unitWeight, setUnitWeight] = useState(''); // NEW: Weight per unit
+    const [unitWeightUnit, setUnitWeightUnit] = useState('kg'); // 'kg' or 'g'
     const [boxWeightMain, setBoxWeightMain] = useState(''); // Kept for backward compatibility/fallback
     const [boxDimensions, setBoxDimensions] = useState({ length: '', width: '', height: '' }); // Box dimensions (Optional)
     const [paymentTerms, setPaymentTerms] = useState(''); // Cash/Credit %
@@ -506,6 +507,7 @@ export default function Home() {
         setBoxWeightMain('');
         setUnitsPerBox('');
         setUnitWeight('');
+        setUnitWeightUnit('kg');
         setBoxDimensions({ length: '', width: '', height: '' });
         setContainerCount(0);
         setSelectedLocation('');
@@ -702,7 +704,11 @@ export default function Home() {
             // Total Units = Total Weight / Unit Weight
             let totalUnits = parseFloat(quantity);
             if (unitWeight && parseFloat(unitWeight) > 0) {
-                totalUnits = Math.ceil(parseFloat(quantity) / parseFloat(unitWeight));
+                let weightInKg = parseFloat(unitWeight);
+                if (unitWeightUnit === 'g') {
+                    weightInKg = weightInKg / 1000;
+                }
+                totalUnits = Math.ceil(parseFloat(quantity) / weightInKg);
             }
 
             // 2. Calculate Total Boxes
@@ -858,6 +864,7 @@ export default function Home() {
                     boxWeightMain,
                     unitsPerBox,
                     unitWeight,
+                    unitWeightUnit,
                     selectedLocationId: selectedLocation,
                     factoryPincode,
                     selectedPortId: selectedPort,
@@ -931,6 +938,7 @@ export default function Home() {
         if (inp.boxWeightMain) setBoxWeightMain(inp.boxWeightMain);
         if (inp.unitsPerBox) setUnitsPerBox(inp.unitsPerBox);
         if (inp.unitWeight) setUnitWeight(inp.unitWeight);
+        if (inp.unitWeightUnit) setUnitWeightUnit(inp.unitWeightUnit);
         // Locations
         if (inp.selectedLocationId) setSelectedLocation(inp.selectedLocationId);
         if (inp.factoryPincode) setFactoryPincode(inp.factoryPincode);
@@ -1378,16 +1386,28 @@ export default function Home() {
                             {/* Unit Weight & Units per Box Row */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
                                 <div>
-                                    <label className="form-label">Unit Weight (kg) <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>(Optional)</span></label>
-                                    <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        className="form-input"
-                                        placeholder="e.g., 0.5"
-                                        value={unitWeight}
-                                        onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) { setUnitWeight(v); setResult(null); } }}
-                                        min="0"
-                                    />
+                                    <label className="form-label">Unit Weight <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>(Optional)</span></label>
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            className="form-input"
+                                            placeholder={unitWeightUnit === 'g' ? 'e.g., 500' : 'e.g., 0.5'}
+                                            value={unitWeight}
+                                            onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) { setUnitWeight(v); setResult(null); } }}
+                                            min="0"
+                                            style={{ flex: 1 }}
+                                        />
+                                        <select
+                                            className="form-select"
+                                            value={unitWeightUnit}
+                                            onChange={(e) => { setUnitWeightUnit(e.target.value); setResult(null); }}
+                                            style={{ width: '70px', minWidth: '70px', padding: '6px 4px', fontSize: 'var(--text-sm)' }}
+                                        >
+                                            <option value="kg">KG</option>
+                                            <option value="g">Gram</option>
+                                        </select>
+                                    </div>
                                     <small style={{ color: 'var(--text-muted)', fontSize: '10px' }}>If Quantity is Total Weight, enter weight per unit here.</small>
                                 </div>
                                 <div>
@@ -1562,9 +1582,12 @@ export default function Home() {
                                         className="btn btn-secondary"
                                         style={{ width: '100%', marginBottom: 'var(--space-2)' }}
                                         onClick={() => {
+                                            console.log('Opening box calculator modal...');
+                                            console.log('selectedContainerType:', selectedContainerType);
                                             setCalcError('');
                                             setCalcResult(null);
                                             setShowCalcModal(true);
+                                            console.log('showCalcModal set to true');
                                         }}
                                     >
                                         Calculate no. of boxes per container
@@ -1691,7 +1714,7 @@ export default function Home() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="form-label">Payment Terms (Credit %)</label>
+                                        <label className="form-label">Payment in Credit (%)</label>
                                         <input
                                             type="number"
                                             className="form-input"
@@ -1732,7 +1755,7 @@ export default function Home() {
                                 </div>
 
                                 <div style={{ marginBottom: 'var(--space-3)' }}>
-                                    <label className="form-label">Export Packing/Palletization (₹/container)</label>
+                                    <label className="form-label">Export Packing (Palletization) Cost (₹/container)</label>
                                     <input
                                         type="number"
                                         className="form-input"
@@ -2385,10 +2408,10 @@ export default function Home() {
                                                     </tr>
                                                 )}
 
-                                                {/* Export Packing/Palletization */}
+                                                {/* Export Packing (Palletization) Cost */}
                                                 {result.pricing.breakdown.exportPacking?.total > 0 && (
                                                     <tr>
-                                                        <td>Export Packing/Palletization ({result.containerCount}×)</td>
+                                                        <td>Export Packing (Palletization) Cost ({result.containerCount}×)</td>
                                                         <td><span className="badge badge-warning">Per Container</span></td>
                                                         <td>
                                                             {isEditingBreakdown ? (
@@ -2775,6 +2798,76 @@ export default function Home() {
                 onApply={applyCalcResult}
                 CONTAINER_SPECS={getContainerSpecs}
             />
+
+            {/* History Modal */}
+            {showHistory && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px'
+                }} onClick={() => setShowHistory(false)}>
+                    <div style={{
+                        background: 'var(--bg-primary, #fff)', borderRadius: 'var(--radius-lg, 12px)',
+                        width: '100%', maxWidth: '600px', maxHeight: '80vh', overflow: 'hidden',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column'
+                    }} onClick={e => e.stopPropagation()}>
+                        <div style={{
+                            padding: '16px 24px',
+                            borderBottom: '1px solid var(--gray-200, #e5e7eb)',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: '18px' }}>📋 Calculation History</h3>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                {calculationHistory.length > 0 && (
+                                    <button className="btn btn-secondary btn-sm" onClick={clearAllHistory}
+                                        style={{ fontSize: '12px', color: 'var(--error, red)' }}
+                                    >Clear All</button>
+                                )}
+                                <button className="btn btn-secondary btn-sm" onClick={() => setShowHistory(false)}>✕</button>
+                            </div>
+                        </div>
+                        <div style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
+                            {calculationHistory.length === 0 ? (
+                                <div style={{ textAlign: 'center', color: 'var(--text-muted, #999)', padding: '40px 0' }}>
+                                    <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
+                                    <p>No calculations yet.</p>
+                                    <p style={{ fontSize: '13px' }}>Your calculations will appear here after you use the calculator.</p>
+                                </div>
+                            ) : (
+                                calculationHistory.map(entry => (
+                                    <div key={entry.id} style={{
+                                        border: '1px solid var(--gray-200, #e5e7eb)',
+                                        borderRadius: '8px',
+                                        padding: '12px 16px', marginBottom: '10px',
+                                        cursor: 'pointer', transition: 'all 0.15s',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                    }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-50, #f9fafb)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <div onClick={() => loadFromHistory(entry)} style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
+                                                {entry.summary?.productName || entry.inputs?.productName || 'Unknown Product'}
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: 'var(--text-muted, #999)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                                <span>📦 {entry.summary?.quantity?.toLocaleString() || '?'} KG</span>
+                                                <span>🏷️ {entry.inputs?.selectedTier === 'exFactory' ? 'EXW' : entry.inputs?.selectedTier === 'fob' ? 'FOB' : 'CIF'}</span>
+                                                <span>💰 ${entry.inputs?.customPrice || '?'}/kg</span>
+                                                <span>🕒 {new Date(entry.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); deleteHistoryEntry(entry.id); }}
+                                            style={{ color: 'var(--error, red)', background: 'none', border: 'none', padding: '4px 8px', fontSize: '16px', cursor: 'pointer' }}
+                                            title="Delete this entry"
+                                        >🗑️</button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
@@ -2782,8 +2875,16 @@ export default function Home() {
 // Container Calculator Modal Component - integrated at the end of the file
 function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, calcError, boxLength, setBoxLength, boxWidth, setBoxWidth, boxHeight, setBoxHeight, boxWeight, setBoxWeight, onApply, CONTAINER_SPECS }) {
     if (!show) return null;
+    console.log('ContainerCalcModal rendering, containerCode:', containerCode);
     // CONTAINER_SPECS is now a function, call it with containerCode
-    const container = typeof CONTAINER_SPECS === 'function' ? CONTAINER_SPECS(containerCode) : (CONTAINER_SPECS[containerCode] || CONTAINER_SPECS['20FT']);
+    let container;
+    try {
+        container = typeof CONTAINER_SPECS === 'function' ? CONTAINER_SPECS(containerCode) : (CONTAINER_SPECS[containerCode] || CONTAINER_SPECS['20FT']);
+        console.log('Container specs:', container);
+    } catch (err) {
+        console.error('Error getting container specs:', err);
+        container = { lengthCm: 590, widthCm: 235, heightCm: 239, maxWeightKg: 18000 };
+    }
 
     return (
         <div style={{
@@ -2892,75 +2993,6 @@ function ContainerCalcModal({ show, onClose, containerCode, onCalc, calcResult, 
                     </div>
                 )}
             </div>
-            {/* History Modal */}
-            {showHistory && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
-                    display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px'
-                }} onClick={() => setShowHistory(false)}>
-                    <div style={{
-                        background: 'var(--bg-primary, #fff)', borderRadius: 'var(--radius-lg, 12px)',
-                        width: '100%', maxWidth: '600px', maxHeight: '80vh', overflow: 'hidden',
-                        boxShadow: '0 20px 60px rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column'
-                    }} onClick={e => e.stopPropagation()}>
-                        <div style={{
-                            padding: '16px 24px',
-                            borderBottom: '1px solid var(--gray-200, #e5e7eb)',
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                        }}>
-                            <h3 style={{ margin: 0, fontSize: '18px' }}>📋 Calculation History</h3>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                                {calculationHistory.length > 0 && (
-                                    <button className="btn btn-secondary btn-sm" onClick={clearAllHistory}
-                                        style={{ fontSize: '12px', color: 'var(--error, red)' }}
-                                    >Clear All</button>
-                                )}
-                                <button className="btn btn-secondary btn-sm" onClick={() => setShowHistory(false)}>✕</button>
-                            </div>
-                        </div>
-                        <div style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
-                            {calculationHistory.length === 0 ? (
-                                <div style={{ textAlign: 'center', color: 'var(--text-muted, #999)', padding: '40px 0' }}>
-                                    <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
-                                    <p>No calculations yet.</p>
-                                    <p style={{ fontSize: '13px' }}>Your calculations will appear here after you use the calculator.</p>
-                                </div>
-                            ) : (
-                                calculationHistory.map(entry => (
-                                    <div key={entry.id} style={{
-                                        border: '1px solid var(--gray-200, #e5e7eb)',
-                                        borderRadius: '8px',
-                                        padding: '12px 16px', marginBottom: '10px',
-                                        cursor: 'pointer', transition: 'all 0.15s',
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                    }}
-                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-50, #f9fafb)'}
-                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                    >
-                                        <div onClick={() => loadFromHistory(entry)} style={{ flex: 1 }}>
-                                            <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
-                                                {entry.summary?.productName || entry.inputs?.productName || 'Unknown Product'}
-                                            </div>
-                                            <div style={{ fontSize: '12px', color: 'var(--text-muted, #999)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                                                <span>📦 {entry.summary?.quantity?.toLocaleString() || '?'} KG</span>
-                                                <span>🏷️ {entry.inputs?.selectedTier === 'exFactory' ? 'EXW' : entry.inputs?.selectedTier === 'fob' ? 'FOB' : 'CIF'}</span>
-                                                <span>💰 ${entry.inputs?.customPrice || '?'}/kg</span>
-                                                <span>🕒 {new Date(entry.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); deleteHistoryEntry(entry.id); }}
-                                            style={{ color: 'var(--error, red)', background: 'none', border: 'none', padding: '4px 8px', fontSize: '16px', cursor: 'pointer' }}
-                                            title="Delete this entry"
-                                        >🗑️</button>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
