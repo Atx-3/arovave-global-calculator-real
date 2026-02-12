@@ -158,6 +158,122 @@ export default function Home() {
         return Object.values(editedBreakdown).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
     };
 
+    // Save edited breakdown - update result with edited values
+    const handleSaveEditedBreakdown = () => {
+        if (!result || !isEditingBreakdown) return;
+
+        const exchangeRate = result.pricing?.currency?.exchange || 83.50;
+        const qty = result.quantity || 1;
+
+        // Calculate new EXW total from edited values
+        const newExwINR = (parseFloat(editedBreakdown.productBase) || 0)
+            + (parseFloat(editedBreakdown.innerPacking) || 0)
+            + (parseFloat(editedBreakdown.outerPacking) || 0)
+            + (parseFloat(editedBreakdown.bankCharges) || 0)
+            + (parseFloat(editedBreakdown.profit) || 0);
+
+        // FOB = EXW + freight/handling/port costs
+        const newFobINR = newExwINR
+            + (parseFloat(editedBreakdown.localFreight) || 0)
+            + (parseFloat(editedBreakdown.chaCustoms) || 0)
+            + (parseFloat(editedBreakdown.portHandling) || 0)
+            + (parseFloat(editedBreakdown.containerStuffing) || 0)
+            + (parseFloat(editedBreakdown.exportPacking) || 0)
+            + (parseFloat(editedBreakdown.ecgc) || 0);
+
+        // CIF = FOB + international freight + insurance
+        const newCifINR = newFobINR
+            + (parseFloat(editedBreakdown.seaFreight) || 0)
+            + (parseFloat(editedBreakdown.marineInsurance) || 0);
+
+        const newExwUSD = Math.round((newExwINR / exchangeRate) * 100) / 100;
+        const newFobUSD = Math.round((newFobINR / exchangeRate) * 100) / 100;
+        const newCifUSD = Math.round((newCifINR / exchangeRate) * 100) / 100;
+
+        // Update result with new totals
+        setResult(prev => ({
+            ...prev,
+            pricing: {
+                ...prev.pricing,
+                exFactory: {
+                    ...prev.pricing.exFactory,
+                    inr: Math.round(newExwINR * 100) / 100,
+                    usd: newExwUSD
+                },
+                fob: {
+                    ...prev.pricing.fob,
+                    inr: Math.round(newFobINR * 100) / 100,
+                    usd: newFobUSD
+                },
+                cif: {
+                    ...prev.pricing.cif,
+                    inr: Math.round(newCifINR * 100) / 100,
+                    usd: newCifUSD
+                },
+                perUnit: {
+                    exFactory: Math.round((newExwUSD / qty) * 100) / 100,
+                    fob: Math.round((newFobUSD / qty) * 100) / 100,
+                    cif: Math.round((newCifUSD / qty) * 100) / 100
+                },
+                breakdown: {
+                    ...prev.pricing.breakdown,
+                    productBase: {
+                        ...prev.pricing.breakdown.productBase,
+                        total: parseFloat(editedBreakdown.productBase) || 0
+                    },
+                    innerPacking: {
+                        ...prev.pricing.breakdown.innerPacking,
+                        total: parseFloat(editedBreakdown.innerPacking) || 0
+                    },
+                    outerPacking: {
+                        ...prev.pricing.breakdown.outerPacking,
+                        total: parseFloat(editedBreakdown.outerPacking) || 0
+                    },
+                    profitIncluded: {
+                        ...prev.pricing.breakdown.profitIncluded,
+                        amount: parseFloat(editedBreakdown.profit) || 0
+                    },
+                    localFreight: {
+                        ...prev.pricing.breakdown.localFreight,
+                        total: parseFloat(editedBreakdown.localFreight) || 0
+                    },
+                    port: {
+                        ...prev.pricing.breakdown.port,
+                        handling: parseFloat(editedBreakdown.portHandling) || 0,
+                        cha: (parseFloat(editedBreakdown.chaCustoms) || 0) / 2,
+                        customs: (parseFloat(editedBreakdown.chaCustoms) || 0) / 2
+                    },
+                    containerStuffing: {
+                        ...prev.pricing.breakdown.containerStuffing,
+                        total: parseFloat(editedBreakdown.containerStuffing) || 0
+                    },
+                    exportPacking: {
+                        ...prev.pricing.breakdown.exportPacking,
+                        total: parseFloat(editedBreakdown.exportPacking) || 0
+                    },
+                    ecgc: {
+                        ...prev.pricing.breakdown.ecgc,
+                        total: parseFloat(editedBreakdown.ecgc) || 0
+                    },
+                    freight: {
+                        ...prev.pricing.breakdown.freight,
+                        totalWithGST: parseFloat(editedBreakdown.seaFreight) || 0
+                    },
+                    insurance: {
+                        ...prev.pricing.breakdown.insurance,
+                        total: parseFloat(editedBreakdown.marineInsurance) || 0
+                    },
+                    bankCharges: {
+                        ...prev.pricing.breakdown.bankCharges,
+                        total: parseFloat(editedBreakdown.bankCharges) || 0
+                    }
+                }
+            }
+        }));
+
+        setIsEditingBreakdown(false);
+    };
+
     // Client Details Modal State (for PDF download)
     const [showClientModal, setShowClientModal] = useState(false);
     const [clientName, setClientName] = useState('');
@@ -1959,7 +2075,7 @@ export default function Home() {
                                             {isEditingBreakdown && (
                                                 <button
                                                     type="button"
-                                                    onClick={handleCalculate} // "Save" just triggers recalc
+                                                    onClick={handleSaveEditedBreakdown}
                                                     className="btn btn-primary btn-sm"
                                                 >
                                                     Save & Recalculate
