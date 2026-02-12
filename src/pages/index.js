@@ -429,8 +429,17 @@ export default function Home() {
         }
     }, [selectedProduct, selectedContainerType]);
 
-    // Auto-fill Sea Freight when container type changes
+    // Auto-fill Sea Freight when container type or country changes
     useEffect(() => {
+        // If a country is selected and has a sea_freight_usd value, use it
+        if (selectedCountry) {
+            const country = countries.find(c => c.id.toString() === selectedCountry);
+            if (country && country.sea_freight_usd > 0) {
+                setSeaFreight(country.sea_freight_usd.toString());
+                return;
+            }
+        }
+        // Fallback: use general settings default based on container type
         if (selectedContainerType && settings) {
             const defaultFreight = selectedContainerType.code === '20FT'
                 ? settings.sea_freight_20ft
@@ -440,7 +449,7 @@ export default function Home() {
                 setSeaFreight(defaultFreight);
             }
         }
-    }, [selectedContainerType, settings]);
+    }, [selectedContainerType, selectedCountry, settings, countries]);
 
     // Auto-update price if product has specific rate for selected location
     useEffect(() => {

@@ -180,7 +180,7 @@ export default function SettingsPage() {
             case 'products': return { name: '', hsn_code: '', unit: 'KG', base_price_usd: 0, qty_per_20ft: 0, qty_per_40ft: 0, active: true, linked_manufacturers: [] };
             case 'locations': return { name: '', state: '', pincode: '' };
             case 'ports': return { name: '', code: '', city: '', pincode: '', handling_per_container: 0, cha_charges: 0, customs_per_shipment: 0 };
-            case 'countries': return { name: '', code: '', ecgc_risk_category: 'A', ecgc_rate_percent: 0.3 };
+            case 'countries': return { name: '', code: '', ecgc_risk_category: 'A', ecgc_rate_percent: 0.3, sea_freight_usd: 0 };
             case 'destPorts': return { name: '', code: '', country_id: 1 };
             case 'containers': return { name: '', code: '', max_weight_kg: 0, max_volume_cbm: 0, length_cm: 0, width_cm: 0, height_cm: 0, is_active: true };
             case 'certifications': return { name: '', cost_flat: 0, charge_type: 'per_shipment', is_mandatory: false };
@@ -324,13 +324,14 @@ export default function SettingsPage() {
                         {/* Countries Tab */}
                         {activeTab === 'countries' && (
                             <table className="breakup-table">
-                                <thead><tr><th>Country</th><th>Code</th><th>ECGC Rate</th><th>Actions</th></tr></thead>
+                                <thead><tr><th>Country</th><th>Code</th><th>ECGC Rate</th><th>Sea Freight (USD)</th><th>Actions</th></tr></thead>
                                 <tbody>
                                     {countries.map(item => (
                                         <tr key={item.id}>
                                             <td>{item.name}</td>
                                             <td>{item.code}</td>
                                             <td>{item.ecgc_rate_percent}%</td>
+                                            <td>${item.sea_freight_usd || 0}</td>
                                             <td>
                                                 <button className="btn btn-secondary btn-sm" onClick={() => handleEdit('countries', item)} style={{ marginRight: '4px' }}>Edit</button>
                                                 <button className="btn btn-secondary btn-sm" onClick={() => handleDelete('countries', item.id)}>Delete</button>
@@ -528,6 +529,7 @@ export default function SettingsPage() {
                                     <div className="form-group"><label className="form-label">ECGC Risk Category</label><input className="form-input" value={formData.ecgc_risk_category || ''} onChange={e => setFormData({ ...formData, ecgc_risk_category: e.target.value })} /></div>
                                 </div>
                                 <div className="form-group"><label className="form-label">ECGC Rate (%)</label><input className="form-input" type="number" step="0.01" value={formData.ecgc_rate_percent || ''} onChange={e => setFormData({ ...formData, ecgc_rate_percent: parseFloat(e.target.value) || 0 })} /></div>
+                                <div className="form-group"><label className="form-label">Sea Freight (USD per container)</label><input className="form-input" type="number" value={formData.sea_freight_usd || ''} onChange={e => setFormData({ ...formData, sea_freight_usd: parseFloat(e.target.value) || 0 })} /></div>
                             </>
                         )}
 
@@ -571,6 +573,7 @@ export default function SettingsPage() {
                                     <select className="form-select" value={formData.charge_type || ''} onChange={e => setFormData({ ...formData, charge_type: e.target.value })}>
                                         <option value="per_shipment">Per Shipment</option>
                                         <option value="per_container">Per Container</option>
+                                        <option value="by_exporter">By Exporter</option>
                                     </select>
                                 </div>
                             </>
