@@ -87,14 +87,17 @@ export default function SettingsPage() {
             if (res.ok) {
                 setSaveMessage('✓ Saved to file!');
                 setTimeout(() => setSaveMessage(''), 2000);
+                return true;
             } else {
                 setSaveMessage('❌ Save failed');
                 setTimeout(() => setSaveMessage(''), 3000);
+                return false;
             }
         } catch (error) {
             console.error('Error saving:', error);
             setSaveMessage('❌ Save failed');
             setTimeout(() => setSaveMessage(''), 3000);
+            return false;
         }
     }
 
@@ -126,7 +129,7 @@ export default function SettingsPage() {
         saveData(type, newData);
     }
 
-    function handleSave() {
+    async function handleSave() {
         const dataMap = { products, locations, ports, countries, destPorts, containers, certifications };
         const setterMap = {
             products: setProducts, locations: setLocations, ports: setPorts,
@@ -146,9 +149,11 @@ export default function SettingsPage() {
             newData = [...dataMap[activeTab], { ...formData, id: newId }];
         }
 
-        setterMap[activeTab](newData);
-        saveData(activeTab, newData);
-        setShowModal(false);
+        const saved = await saveData(activeTab, newData);
+        if (saved) {
+            setterMap[activeTab](newData);
+            setShowModal(false);
+        }
     }
 
     function handleSettingChange(key, value) {
