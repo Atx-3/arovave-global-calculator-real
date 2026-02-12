@@ -487,6 +487,46 @@ export default function Home() {
         setResult(null);
     }, [quantity, boxesPerContainer, boxWeightMain]);
 
+    // Clear entire form
+    const handleClearForm = () => {
+        setSelectedProduct(null);
+        setQuantity('');
+        setCustomPrice('');
+        setSelectedContainerType(null);
+        setBoxesPerContainer('');
+        setBoxWeightMain('');
+        setUnitsPerBox('');
+        setUnitWeight('');
+        setBoxDimensions({ length: '', width: '', height: '' });
+        setContainerCount(0);
+        setSelectedLocation('');
+        setFactoryPincode('');
+        setSelectedPort('');
+        setDistanceKm('');
+        setDistanceInfo(null);
+        setSelectedCountry('');
+        setSelectedDestPort('');
+        setSelectedCerts([]);
+        setCustomProfitRate('');
+        setInnerPackingCost('');
+        setOuterPackingCost('');
+        setContainerStuffingCharge('');
+        setExportPackingCost('');
+        setSeaFreight('');
+        setMarineInsuranceRate('');
+        setIndiaInsuranceRate('');
+        setPaymentTerms('');
+        setPackagingCharges('');
+        setLocalFreight('');
+        setExtraCharges([]);
+        setExwExtraCharges([]);
+        setCifExtraCharges([]);
+        setResult(null);
+        setError('');
+        setIsEditingBreakdown(false);
+        hasCalculatedOnceRef.current = false;
+    };
+
     // Handle product selection
     const handleProductChange = (e) => {
         const productId = e.target.value;
@@ -1159,6 +1199,14 @@ export default function Home() {
                                 title="Reload data from settings"
                             >
                                 🔄 Refresh
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={handleClearForm}
+                                title="Clear form and start fresh"
+                            >
+                                🗑️ Clear
                             </button>
                             <a href="/settings" className="btn btn-secondary btn-sm">Settings</a>
                         </div>
