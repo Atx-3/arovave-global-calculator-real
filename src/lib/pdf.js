@@ -49,7 +49,9 @@ function drawPageBackground(doc) {
  * @param {string} logoDataUrl - Base64 data URL of the logo (optional)
  * @returns {Promise<jsPDF>} PDF document
  */
-export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = null) {
+export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = null, currency = 'USD') {
+    // Currency formatter based on selection
+    const fmt = (value) => currency === 'INR' ? formatINR(value) : formatCurrency(value);
     // Dynamically import jspdf-autotable to avoid SSR issues
     await import('jspdf-autotable');
 
@@ -108,23 +110,12 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     yPos += 15;
 
     // ============================================
-    // PRICING SUMMARY - Single Selected Tier Price
+    // PRICING SUMMARY - Ex-Factory Price Only
     // ============================================
-    const exFactoryPrice = data.pricing?.exFactory?.usd || 0;
-    const fobPrice = data.pricing?.fob?.usd || 0;
-    const cifPrice = data.pricing?.cif?.usd || 0;
-    const headerTier = data.pricing?.selectedTier || 'cif';
-
-    // Get price and label based on selected tier
-    let selectedPrice = cifPrice;
-    let tierLabel = 'CIF (Cost Insurance Freight)';
-    if (headerTier === 'exFactory') {
-        selectedPrice = exFactoryPrice;
-        tierLabel = 'EX-FACTORY';
-    } else if (headerTier === 'fob') {
-        selectedPrice = fobPrice;
-        tierLabel = 'FOB (Free On Board)';
-    }
+    const exFactoryPrice = currency === 'INR'
+        ? (data.pricing?.exFactory?.inr || 0)
+        : (data.pricing?.exFactory?.usd || 0);
+    const perUnitPrice = data.pricing?.perUnit?.exFactory || 0;
 
     // Single prominent price box - full width
     const priceBoxWidth = pageWidth - 40;
@@ -136,12 +127,12 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(255, 255, 255);
-    doc.text(tierLabel, pageWidth / 2, yPos + 10, { align: 'center' });
+    doc.text('EX-FACTORY', pageWidth / 2, yPos + 10, { align: 'center' });
 
     // Price (large, bold)
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text(formatCurrency(selectedPrice), pageWidth / 2, yPos + 26, { align: 'center' });
+    doc.text(fmt(exFactoryPrice), pageWidth / 2, yPos + 26, { align: 'center' });
 
     yPos += priceBoxHeight + 12;
 
@@ -209,12 +200,6 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     doc.text(`${data.quantity?.toLocaleString() || 0} ${data.unit || 'KG'}`, rightColStart + 35, rightY);
     rightY += 5;
 
-    // Containers
-    doc.setTextColor(...textMuted);
-    doc.text('Containers:', rightColStart, rightY);
-    doc.setTextColor(...textDark);
-    doc.text(`${data.containerCount || 1} × ${data.containerCode || '20FT'}`, rightColStart + 35, rightY);
-
     yPos = Math.max(leftY, rightY) + 8;
 
     // Horizontal line
@@ -223,23 +208,13 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     yPos += 8;
 
     // ============================================
-    // ROUTE DETAILS (single row)
+    // ROUTE DETAILS (single row - Origin only)
     // ============================================
     doc.setFontSize(9);
     doc.setTextColor(...textMuted);
     doc.text('Origin:', leftCol, yPos);
     doc.setTextColor(...textDark);
     doc.text(`${data.factoryLocation || 'India'}`, leftCol + 25, yPos);
-
-    doc.setTextColor(...textMuted);
-    doc.text('Port:', leftCol + 80, yPos);
-    doc.setTextColor(...textDark);
-    doc.text(`${data.loadingPort || 'N/A'}`, leftCol + 95, yPos);
-
-    doc.setTextColor(...textMuted);
-    doc.text('Destination:', rightColStart, yPos);
-    doc.setTextColor(...textDark);
-    doc.text(`${data.destinationPort || 'N/A'}, ${data.country || 'N/A'}`, rightColStart + 40, yPos);
 
     yPos += 15;
 
@@ -250,95 +225,54 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     const selectedTier = data.pricing?.selectedTier || 'cif';
     const tableBody = [];
 
-    // Product Base - always shown for all tiers
+    // Product Base - EXW items only
     if (breakdown.productBase) {
         tableBody.push([
             'Product Cost',
-            `${formatCurrency(breakdown.productBase.perUnit || 0)}/unit`,
+            `${formatCurrency(breakdown.productBase.perUnit || 0)}/${data.unit || 'KG'}`,
             `${breakdown.productBase.quantity || 0} ${data.unit || 'KG'}`,
-            formatCurrency(breakdown.productBase.total || 0)
+            fmt(breakdown.productBase.total || 0)
         ]);
     }
 
-    // Packaging - always shown for all tiers
-    if (breakdown.packagingCharges?.total > 0) {
+    // Inner Packing
+    if (breakdown.innerPacking?.total > 0) {
         tableBody.push([
-            'Packaging & Extras',
+            'Inner Packing',
             '-',
-            '-',
-            formatCurrency(breakdown.packagingCharges.total)
+            `${breakdown.innerPacking.quantity || 0} units`,
+            fmt(breakdown.innerPacking.total)
         ]);
     }
 
-    // === FOB & CIF only items ===
-    if (selectedTier === 'fob' || selectedTier === 'cif') {
-        // Local Freight
-        if (breakdown.localFreight?.total > 0) {
-            tableBody.push([
-                'Inland Transport',
-                formatINR(breakdown.localFreight.perContainer || 0),
-                `${data.containerCount || 1} containers`,
-                formatCurrency(breakdown.localFreight.total)
-            ]);
-        }
-
-        // Handling
-        if (breakdown.handling?.total > 0) {
-            tableBody.push([
-                'Handling Charges',
-                '-',
-                '-',
-                formatCurrency(breakdown.handling.total)
-            ]);
-        }
-
-        // Port
-        if (breakdown.port) {
-            const portTotal = (breakdown.port.handling || 0) + (breakdown.port.cha || 0) + (breakdown.port.customs || 0);
-            if (portTotal > 0) {
-                tableBody.push([
-                    'Port & Customs',
-                    '-',
-                    '-',
-                    formatCurrency(portTotal)
-                ]);
-            }
-        }
+    // Outer Packing
+    if (breakdown.outerPacking?.total > 0) {
+        tableBody.push([
+            'Outer Box Packing',
+            '-',
+            `${breakdown.totalBoxes || 0} boxes`,
+            fmt(breakdown.outerPacking.total)
+        ]);
     }
 
-    // Certifications - shown in ALL tiers (EX-FACTORY, FOB, CIF)
-    if (breakdown.certifications?.items?.length > 0) {
-        breakdown.certifications.items.forEach(cert => {
-            tableBody.push([
-                cert.name,
-                '-',
-                'Per Shipment',
-                formatCurrency(cert.cost)
-            ]);
-        });
+    // Bank Charges
+    if (breakdown.bankCharges?.total > 0) {
+        tableBody.push([
+            `Bank Charges (${breakdown.bankCharges.rate || 0}%)`,
+            'On Total',
+            '-',
+            fmt(breakdown.bankCharges.total)
+        ]);
     }
 
-    // === CIF only items ===
-    if (selectedTier === 'cif') {
-        // International Freight
-        if (breakdown.freight?.totalWithGST > 0) {
-            tableBody.push([
-                'International Freight',
-                formatCurrency(breakdown.freight.perContainer || 0),
-                `${data.containerCount || 1} containers`,
-                formatCurrency(breakdown.freight.totalWithGST)
-            ]);
-        }
-
-        // Insurance
-        if (breakdown.insurance?.total > 0) {
-            tableBody.push([
-                'Marine Insurance',
-                `${breakdown.insurance.rate || 0}%`,
-                '-',
-                formatCurrency(breakdown.insurance.total)
-            ]);
-        }
+    // Profit
+    if (breakdown.profitIncluded?.amount > 0) {
+        tableBody.push([
+            `Profit Margin (${breakdown.profitIncluded.rate || 0}%)`,
+            'On Total',
+            '-',
+            fmt(breakdown.profitIncluded.amount)
+        ]);
     }
 
     doc.autoTable({
@@ -383,56 +317,26 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     // ============================================
     // TOTALS Section (right aligned)
     // ============================================
-    // Note: exFactoryPrice, fobPrice, cifPrice already defined above
-    const profitRate = breakdown.profitIncluded?.rate || 0;
-    const profitAmount = breakdown.profitIncluded?.amount || 0;
-
-    // Subtotals - show only relevant tier totals
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...textMuted);
-
     const rightCol = pageWidth - 20;
     const labelCol = rightCol - 60;
 
-    // Always show Ex-Factory
-    doc.text('Ex-Factory', labelCol, yPos, { align: 'right' });
+    // Per unit rate
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...textMuted);
+    doc.text(`Rate per ${data.unit || 'KG'}`, labelCol, yPos, { align: 'right' });
     doc.setTextColor(...textDark);
-    doc.text(formatCurrency(exFactoryPrice), rightCol, yPos, { align: 'right' });
+    doc.text(formatCurrency(perUnitPrice), rightCol, yPos, { align: 'right' });
 
-    // FOB - show only if tier is FOB or CIF
-    if (selectedTier === 'fob' || selectedTier === 'cif') {
-        yPos += 8;
-        doc.setTextColor(...textMuted);
-        doc.text('FOB', labelCol, yPos, { align: 'right' });
-        doc.setTextColor(...textDark);
-        doc.text(formatCurrency(fobPrice), rightCol, yPos, { align: 'right' });
-    }
+    yPos += 6;
 
-    // Profit is merged into final price - not shown separately in bill
-    // The final tier prices (exFactory, fob, cif) already include profit
-
-    yPos += 4;
-
-    // TOTAL (bold, larger) - show selected tier's final price
+    // TOTAL (bold, larger) - Ex-Factory final price
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...textDark);
-
-    // Display the final price based on selected tier
-    let finalPrice = cifPrice;
-    let totalTierLabel = 'Total (CIF)';
-    if (selectedTier === 'exFactory') {
-        finalPrice = exFactoryPrice;
-        totalTierLabel = 'Total (Ex-Factory)';
-    } else if (selectedTier === 'fob') {
-        finalPrice = fobPrice;
-        totalTierLabel = 'Total (FOB)';
-    }
-
-    doc.text(totalTierLabel, labelCol, yPos, { align: 'right' });
+    doc.text('Total (Ex-Factory)', labelCol, yPos, { align: 'right' });
     doc.setFontSize(14);
-    doc.text(formatCurrency(finalPrice), rightCol, yPos, { align: 'right' });
+    doc.text(fmt(exFactoryPrice), rightCol, yPos, { align: 'right' });
 
     // ============================================
     // FOOTER - Payment Info & Company Info
@@ -516,9 +420,9 @@ async function loadLogoAsBase64() {
  * @param {Object} data - Quotation data
  * @param {Object} clientInfo - Client details
  */
-export async function downloadQuotationPDF(data, clientInfo = {}) {
+export async function downloadQuotationPDF(data, clientInfo = {}, currency = 'USD') {
     const logoDataUrl = await loadLogoAsBase64();
-    const doc = await generateQuotationPDF(data, clientInfo, logoDataUrl);
+    const doc = await generateQuotationPDF(data, clientInfo, logoDataUrl, currency);
     const filename = `Arovave_Quotation_${data.productName?.replace(/\s+/g, '_') || 'Export'}_${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(filename);
 }
@@ -529,8 +433,8 @@ export async function downloadQuotationPDF(data, clientInfo = {}) {
  * @param {Object} clientInfo - Client details
  * @returns {Promise<Blob>} PDF blob
  */
-export async function getQuotationPDFBlob(data, clientInfo = {}) {
+export async function getQuotationPDFBlob(data, clientInfo = {}, currency = 'USD') {
     const logoDataUrl = await loadLogoAsBase64();
-    const doc = await generateQuotationPDF(data, clientInfo, logoDataUrl);
+    const doc = await generateQuotationPDF(data, clientInfo, logoDataUrl, currency);
     return doc.output('blob');
 }

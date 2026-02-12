@@ -835,85 +835,19 @@ export default function Home() {
         }
     };
 
-    // Share via WhatsApp - with detailed breakdown like PDF
+    // Share via WhatsApp - EX-FACTORY rate with margin in USD only
     const handleWhatsAppShare = () => {
         if (result) {
-            const tier = result.selectedTier || 'cif';
-            const breakdown = result.pricing?.breakdown || {};
-
-            // Get tier label and final price
-            let tierLabel = 'CIF';
-            let finalPrice = result.pricing.cif.usd;
-            if (tier === 'exFactory') {
-                tierLabel = 'Ex-Factory';
-                finalPrice = result.pricing.exFactory.usd;
-            } else if (tier === 'fob') {
-                tierLabel = 'FOB';
-                finalPrice = result.pricing.fob.usd;
-            }
-
-            // Build detailed breakdown
-            let breakdownText = '*Cost Breakdown:*%0A';
-
-            // Product Cost (always)
-            if (breakdown.productBase?.total) {
-                breakdownText += `• Product: ${formatINR(breakdown.productBase.total)}%0A`;
-            }
-
-            // Packaging (always)
-            if (breakdown.packagingCharges?.total > 0) {
-                breakdownText += `• Packaging: ${formatINR(breakdown.packagingCharges.total)}%0A`;
-            }
-
-            // Certifications (always)
-            if (breakdown.certifications?.items?.length > 0) {
-                breakdown.certifications.items.forEach(cert => {
-                    breakdownText += `• ${cert.name}: ${formatINR(cert.cost)}%0A`;
-                });
-            }
-
-            // FOB/CIF items
-            if (tier === 'fob' || tier === 'cif') {
-                if (breakdown.localFreight?.total > 0) {
-                    breakdownText += `• Inland Transport: ${formatINR(breakdown.localFreight.total)}%0A`;
-                }
-                if (breakdown.handling?.total > 0) {
-                    breakdownText += `• Handling: ${formatINR(breakdown.handling.total)}%0A`;
-                }
-                if (breakdown.port?.total > 0) {
-                    breakdownText += `• Port & Customs: ${formatINR(breakdown.port.total)}%0A`;
-                }
-            }
-
-            // CIF only items
-            if (tier === 'cif') {
-                if (breakdown.freight?.totalWithGST > 0) {
-                    breakdownText += `• Int'l Freight: ${formatINR(breakdown.freight.totalWithGST)}%0A`;
-                }
-                if (breakdown.insurance?.total > 0) {
-                    breakdownText += `• Insurance: ${formatINR(breakdown.insurance.total)}%0A`;
-                }
-            }
-
-            // Build destination info
-            let destinationInfo = '';
-            if (tier === 'fob' || tier === 'cif') {
-                destinationInfo = `Port: ${result.loadingPort || 'N/A'}%0A`;
-            }
-            if (tier === 'cif') {
-                destinationInfo += `Destination: ${result.destinationPort || 'N/A'}, ${result.country || 'N/A'}%0A`;
-            }
+            const perUnitUSD = result.pricing?.perUnit?.exFactory || 0;
+            const totalUSD = result.pricing?.exFactory?.usd || 0;
 
             const text = `*AROVAVE GLOBAL - Export Quotation*%0A` +
                 `━━━━━━━━━━━━━━━━━━%0A%0A` +
                 `*Product:* ${result.productName}%0A` +
                 `*HSN:* ${result.hsnCode || 'N/A'}%0A` +
-                `*Quantity:* ${formatNumber(result.quantity)} ${result.unit}%0A` +
-                `*Containers:* ${result.containerCount} × ${result.containerCode}%0A` +
-                (destinationInfo ? `${destinationInfo}` : '') +
-                `%0A${breakdownText}%0A` +
-                `━━━━━━━━━━━━━━━━━━%0A` +
-                `*Total (${tierLabel}):* ${formatUSD(finalPrice)}%0A%0A` +
+                `*Quantity:* ${formatNumber(result.quantity)} ${result.unit}%0A%0A` +
+                `*Rate:* ${formatUSD(perUnitUSD)} per ${result.unit}%0A` +
+                `*Total (Ex-Factory):* ${formatUSD(totalUSD)}%0A%0A` +
                 `_Contact us for more details!_`;
 
             window.open(`https://wa.me/?text=${text}`, '_blank');
@@ -2111,6 +2045,22 @@ export default function Home() {
 
 
 
+                                        {/* Bank Charges (0.5% on Total Bill) */}
+                                        {result.pricing.breakdown.bankCharges?.total > 0 && (
+                                            <tr>
+                                                <td>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                                        <span>🏦</span>
+                                                        <div>
+                                                            <div>Bank Charges ({result.pricing.breakdown.bankCharges.rate}% on Total Bill)</div>
+                                                            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Applied on entire bill</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td><span className="badge badge-dark">On Total</span></td>
+                                                <td>{formatINR(result.pricing.breakdown.bankCharges.total)}</td>
+                                            </tr>
+                                        )}
 
                                         {/* Profit Margin (if applicable) */}
                                         {result.pricing.breakdown.profitIncluded?.amount > 0 && (
@@ -2486,7 +2436,6 @@ export default function Home() {
                                     textAlign: 'center'
                                 }}>
                                     Exchange Rate: 1 USD = ₹{result.pricing.currency.exchange} |
-                                    Bank Margin: +₹{result.pricing.currency.bankMargin} |
                                     Effective: ₹{result.pricing.currency.effective}
                                 </div>
 

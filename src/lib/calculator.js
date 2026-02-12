@@ -165,7 +165,7 @@ export function calculateExportPricing({
     minInsurance = 5000,
 
     // Bank charges
-    bankChargeRate = 0.25,
+    bankChargeRate = 0.50,
 
     // Profit
     profitRate = 5.0,
@@ -340,15 +340,15 @@ export function calculateExportPricing({
     // ============================================
     // STEP 12: BANK CHARGES
     // ============================================
-    // Base for bank charges: FOB + ECGC + Freight (with GST) + Marine Insurance + CIF Extra Charges
-    const cifBaseForBankCharges = fobINR + ecgcAmount + freightWithGST + insuranceTotal;
-    const bankCharges = cifBaseForBankCharges * (bankChargeRate / 100);
+    // Base for bank charges: 0.5% of total bill (all costs accumulated)
+    const totalCifExtraCharges = parseFloat(cifExtraCharges) || 0;
+    const totalBillForBankCharges = exFactoryINR + localFreightTotal + handlingCosts.total + portCosts.total + totalFobExtraCharges + containerStuffingTotal + exportPackingTotal + ecgcAmount + freightWithGST + insuranceTotal + indianInsuranceCost + totalCifExtraCharges;
+    const bankCharges = totalBillForBankCharges * (bankChargeRate / 100);
 
     // ============================================
     // STEP 13: PROFIT MARGIN (Applied at selected tier)
     // ============================================
-    const totalCifExtraCharges = parseFloat(cifExtraCharges) || 0;
-    const costBaseCIF = cifBaseForBankCharges + bankCharges + totalCifExtraCharges;
+    const costBaseCIF = totalBillForBankCharges + bankCharges;
 
     // Calculate profit base based on selected tier
     let profitBase = 0;
@@ -382,14 +382,14 @@ export function calculateExportPricing({
     let cifFinalINR = costBaseCIF;
 
     if (selectedTier === 'exFactory') {
-        // Profit added to Ex Factory only
-        exFactoryFinalINR = exFactoryINR + profitAmount;
-        fobFinalINR = fobINR + profitAmount; // Profit flows through
-        cifFinalINR = costBaseCIF + profitAmount; // Profit flows through
+        // Profit added to Ex Factory only, bank charges included
+        exFactoryFinalINR = exFactoryINR + bankCharges + profitAmount;
+        fobFinalINR = fobINR + bankCharges + profitAmount; // Profit flows through
+        cifFinalINR = costBaseCIF + profitAmount; // costBaseCIF already includes bankCharges
     } else if (selectedTier === 'fob') {
         // Profit added to FOB
         exFactoryFinalINR = exFactoryINR;
-        fobFinalINR = fobINR + profitAmount;
+        fobFinalINR = fobINR + bankCharges + profitAmount;
         cifFinalINR = costBaseCIF + profitAmount; // Profit flows through
     } else {
         // CIF - profit added to full cost (current behavior)
