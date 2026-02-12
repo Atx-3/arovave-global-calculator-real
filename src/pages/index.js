@@ -163,6 +163,7 @@ export default function Home() {
     const [clientName, setClientName] = useState('');
     const [clientPhone, setClientPhone] = useState('');
     const [clientCompany, setClientCompany] = useState('');
+    const [pdfCurrency, setPdfCurrency] = useState('USD');
 
     // Container specifications (internal dimensions in cm)
     // All specs are now dynamic from settings!
@@ -826,7 +827,7 @@ export default function Home() {
                 phone: clientPhone.trim(),
                 company: clientCompany.trim()
             };
-            await downloadQuotationPDF(result, clientInfo);
+            await downloadQuotationPDF(result, clientInfo, pdfCurrency);
             setShowClientModal(false);
             // Reset form
             setClientName('');
@@ -2526,6 +2527,40 @@ export default function Home() {
                                 onChange={(e) => setClientCompany(e.target.value)}
                                 style={{ width: '100%' }}
                             />
+                        </div>
+
+                        <div style={{ marginBottom: 'var(--space-4)' }}>
+                            <label style={{ display: 'block', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-1)', color: 'var(--text-secondary)' }}>
+                                Currency
+                            </label>
+                            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setPdfCurrency('USD')}
+                                    style={{
+                                        flex: 1, padding: '8px', borderRadius: 'var(--radius-md)',
+                                        border: pdfCurrency === 'USD' ? '2px solid var(--primary-600)' : '1px solid var(--gray-300)',
+                                        background: pdfCurrency === 'USD' ? 'var(--primary-50)' : 'var(--bg-primary)',
+                                        fontWeight: pdfCurrency === 'USD' ? 'var(--font-bold)' : 'normal',
+                                        cursor: 'pointer', fontSize: 'var(--text-sm)'
+                                    }}
+                                >
+                                    $ USD
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPdfCurrency('INR')}
+                                    style={{
+                                        flex: 1, padding: '8px', borderRadius: 'var(--radius-md)',
+                                        border: pdfCurrency === 'INR' ? '2px solid var(--primary-600)' : '1px solid var(--gray-300)',
+                                        background: pdfCurrency === 'INR' ? 'var(--primary-50)' : 'var(--bg-primary)',
+                                        fontWeight: pdfCurrency === 'INR' ? 'var(--font-bold)' : 'normal',
+                                        cursor: 'pointer', fontSize: 'var(--text-sm)'
+                                    }}
+                                >
+                                    ₹ INR
+                                </button>
+                            </div>
                         </div>
 
                         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
