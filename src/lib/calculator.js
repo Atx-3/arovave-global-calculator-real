@@ -340,9 +340,19 @@ export function calculateExportPricing({
     // ============================================
     // STEP 12: BANK CHARGES
     // ============================================
-    // Base for bank charges: 0.5% of total bill (all costs accumulated)
+    // Base for bank charges depends on the selected tier
     const totalCifExtraCharges = parseFloat(cifExtraCharges) || 0;
-    const totalBillForBankCharges = exFactoryINR + localFreightTotal + handlingCosts.total + portCosts.total + totalFobExtraCharges + containerStuffingTotal + exportPackingTotal + ecgcAmount + freightWithGST + insuranceTotal + indianInsuranceCost + totalCifExtraCharges;
+    let totalBillForBankCharges = 0;
+    if (selectedTier === 'exFactory') {
+        // EXW: bank charges only on ex-factory value
+        totalBillForBankCharges = exFactoryINR;
+    } else if (selectedTier === 'fob') {
+        // FOB: bank charges on FOB value (includes local freight, handling, port, etc.)
+        totalBillForBankCharges = fobINR + containerStuffingTotal + exportPackingTotal + ecgcAmount + totalFobExtraCharges;
+    } else {
+        // CIF: bank charges on everything
+        totalBillForBankCharges = exFactoryINR + localFreightTotal + handlingCosts.total + portCosts.total + totalFobExtraCharges + containerStuffingTotal + exportPackingTotal + ecgcAmount + freightWithGST + insuranceTotal + indianInsuranceCost + totalCifExtraCharges;
+    }
     const bankCharges = totalBillForBankCharges * (bankChargeRate / 100);
 
     // ============================================
@@ -444,7 +454,10 @@ export function calculateExportPricing({
         perUnit: {
             exFactory: roundToTwo(exFactoryFinalUSD / quantity),
             fob: roundToTwo(fobFinalUSD / quantity),
-            cif: roundToTwo(cifFinalUSD / quantity)
+            cif: roundToTwo(cifFinalUSD / quantity),
+            exFactoryInr: roundToTwo(exFactoryFinalINR / quantity),
+            fobInr: roundToTwo(fobFinalINR / quantity),
+            cifInr: roundToTwo(cifFinalINR / quantity)
         },
 
         // Detailed breakdown

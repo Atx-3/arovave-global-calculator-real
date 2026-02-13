@@ -2087,7 +2087,7 @@ export default function Home() {
                                             {showCurrency === 'INR' ? formatINR(result.pricing.exFactory.inr) : formatUSD(result.pricing.exFactory.usd)}
                                         </div>
                                         <div style={{ fontSize: 'var(--text-xs)', opacity: 0.7 }}>
-                                            Per {result.unit}: {formatUSD(result.pricing.perUnit.exFactory)}
+                                            Per {result.unit}: {showCurrency === 'INR' ? formatINR(result.pricing.perUnit.exFactoryInr) : formatUSD(result.pricing.perUnit.exFactory)}
                                         </div>
                                     </div>
 
@@ -2108,7 +2108,7 @@ export default function Home() {
                                                 {showCurrency === 'INR' ? formatINR(result.pricing.fob.inr) : formatUSD(result.pricing.fob.usd)}
                                             </div>
                                             <div style={{ fontSize: 'var(--text-xs)', opacity: 0.7 }}>
-                                                Per {result.unit}: {formatUSD(result.pricing.perUnit.fob)}
+                                                Per {result.unit}: {showCurrency === 'INR' ? formatINR(result.pricing.perUnit.fobInr) : formatUSD(result.pricing.perUnit.fob)}
                                             </div>
                                         </div>
                                     )}
@@ -2130,7 +2130,7 @@ export default function Home() {
                                                 {showCurrency === 'INR' ? formatINR(result.pricing.cif.inr) : formatUSD(result.pricing.cif.usd)}
                                             </div>
                                             <div style={{ fontSize: 'var(--text-xs)', opacity: 0.7 }}>
-                                                Per {result.unit}: {formatUSD(result.pricing.perUnit.cif)}
+                                                Per {result.unit}: {showCurrency === 'INR' ? formatINR(result.pricing.perUnit.cifInr) : formatUSD(result.pricing.perUnit.cif)}
                                             </div>
                                         </div>
                                     )}
