@@ -50,13 +50,13 @@ export const PORTS = [
 // DESTINATION COUNTRIES
 // ============================================
 export const COUNTRIES = [
-    { id: 1, name: 'United Arab Emirates', code: 'AE', ecgc_risk_category: 'A', ecgc_rate_percent: 0.35 },
-    { id: 2, name: 'Saudi Arabia', code: 'SA', ecgc_risk_category: 'A', ecgc_rate_percent: 0.40 },
-    { id: 3, name: 'United States', code: 'US', ecgc_risk_category: 'A', ecgc_rate_percent: 0.30 },
-    { id: 4, name: 'United Kingdom', code: 'GB', ecgc_risk_category: 'A', ecgc_rate_percent: 0.30 },
-    { id: 5, name: 'Germany', code: 'DE', ecgc_risk_category: 'A', ecgc_rate_percent: 0.30 },
-    { id: 6, name: 'Singapore', code: 'SG', ecgc_risk_category: 'A', ecgc_rate_percent: 0.25 },
-    { id: 7, name: 'Australia', code: 'AU', ecgc_risk_category: 'A', ecgc_rate_percent: 0.30 },
+    { id: 1, name: 'United Arab Emirates', code: 'AE', ecgc_risk_category: 'A', ecgc_rate_percent: 0.35, sea_freight_usd: 800 },
+    { id: 2, name: 'Saudi Arabia', code: 'SA', ecgc_risk_category: 'A', ecgc_rate_percent: 0.40, sea_freight_usd: 900 },
+    { id: 3, name: 'United States', code: 'US', ecgc_risk_category: 'A', ecgc_rate_percent: 0.30, sea_freight_usd: 2200 },
+    { id: 4, name: 'United Kingdom', code: 'GB', ecgc_risk_category: 'A', ecgc_rate_percent: 0.30, sea_freight_usd: 1800 },
+    { id: 5, name: 'Germany', code: 'DE', ecgc_risk_category: 'A', ecgc_rate_percent: 0.30, sea_freight_usd: 1800 },
+    { id: 6, name: 'Singapore', code: 'SG', ecgc_risk_category: 'A', ecgc_rate_percent: 0.25, sea_freight_usd: 600 },
+    { id: 7, name: 'Australia', code: 'AU', ecgc_risk_category: 'A', ecgc_rate_percent: 0.30, sea_freight_usd: 1500 },
 ];
 
 // ============================================

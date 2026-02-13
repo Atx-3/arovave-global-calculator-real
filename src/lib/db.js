@@ -23,7 +23,7 @@ import {
 // Cache for settings data
 let settingsCache = null;
 
-// Fetch settings from API (only works client-side)
+// Fetch settings - try localStorage first, then API
 async function fetchSettings() {
     if (typeof window === 'undefined') {
         // Server-side: use defaults
@@ -34,11 +34,28 @@ async function fetchSettings() {
         return settingsCache;
     }
 
+    // 1. Try localStorage first (instant, works on Vercel)
+    try {
+        const stored = localStorage.getItem('arovave_all_settings');
+        if (stored) {
+            settingsCache = JSON.parse(stored);
+            // Short cache for quick updates
+            setTimeout(() => { settingsCache = null; }, 5000);
+            return settingsCache;
+        }
+    } catch (e) {
+        console.warn('localStorage read failed:', e);
+    }
+
+    // 2. Fallback to API
     try {
         const res = await fetch('/api/settings');
         if (res.ok) {
             settingsCache = await res.json();
-            // Cache expires after 5 seconds for faster updates
+            // Also save to localStorage for next time
+            try {
+                localStorage.setItem('arovave_all_settings', JSON.stringify(settingsCache));
+            } catch (e) { /* ignore */ }
             setTimeout(() => { settingsCache = null; }, 5000);
             return settingsCache;
         }
@@ -47,6 +64,7 @@ async function fetchSettings() {
     }
     return null;
 }
+
 
 // ============================================
 // CONTAINER TYPES

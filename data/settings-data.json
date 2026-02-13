@@ -5,7 +5,7 @@
       "name": "Premium Basmati Rice",
       "hsn_code": "10063020",
       "unit": "KG",
-      "base_price_usd": 1,
+      "base_price_usd": 5,
       "qty_per_20ft": 18000,
       "qty_per_40ft": 26000,
       "active": true
@@ -115,34 +115,40 @@
   ],
   "locations": [
     {
-      "name": "Delhi NCR",
       "id": 1,
-      "pincode": "110001",
-      "state": "Delhi"
+      "name": "Unjha",
+      "state": "Gujarat",
+      "pincode": "384170"
     },
     {
-      "name": "Mumbai",
       "id": 2,
-      "pincode": "400001",
-      "state": "Maharashtra"
+      "name": "Delhi NCR",
+      "state": "Delhi",
+      "pincode": "110001"
     },
     {
-      "name": "Chennai",
       "id": 3,
-      "pincode": "600001",
-      "state": "Tamil Nadu"
+      "name": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "400001"
     },
     {
-      "name": "Bangalore",
       "id": 4,
-      "pincode": "560001",
-      "state": "Karnataka"
+      "name": "Chennai",
+      "state": "Tamil Nadu",
+      "pincode": "600001"
     },
     {
-      "name": "Ahmedabad",
       "id": 5,
-      "pincode": "380001",
-      "state": "Gujarat"
+      "name": "Bangalore",
+      "state": "Karnataka",
+      "pincode": "560001"
+    },
+    {
+      "id": 6,
+      "name": "Ahmedabad",
+      "state": "Gujarat",
+      "pincode": "380001"
     }
   ],
   "ports": [
@@ -181,56 +187,64 @@
       "name": "United Arab Emirates",
       "code": "AE",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.35
+      "ecgc_rate_percent": 0.35,
+      "sea_freight_usd": 800
     },
     {
       "id": 2,
       "name": "Saudi Arabia",
       "code": "SA",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.4
+      "ecgc_rate_percent": 0.4,
+      "sea_freight_usd": 900
     },
     {
       "id": 3,
       "name": "United States",
       "code": "US",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.3
+      "ecgc_rate_percent": 0.3,
+      "sea_freight_usd": 2200
     },
     {
       "id": 4,
       "name": "United Kingdom",
       "code": "GB",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.3
+      "ecgc_rate_percent": 0.3,
+      "sea_freight_usd": 1800
     },
     {
       "id": 5,
       "name": "Germany",
       "code": "DE",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.3
+      "ecgc_rate_percent": 0.3,
+      "sea_freight_usd": 1800
     },
     {
       "id": 6,
       "name": "Singapore",
       "code": "SG",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.25
+      "ecgc_rate_percent": 0.25,
+      "sea_freight_usd": 600
     },
     {
       "id": 7,
       "name": "Australia",
       "code": "AU",
       "ecgc_risk_category": "A",
-      "ecgc_rate_percent": 0.3
+      "ecgc_rate_percent": 0.3,
+      "sea_freight_usd": 1500
     },
     {
+      "id": 8,
       "name": "AERSTYFG",
       "code": "1234",
       "ecgc_risk_category": "A",
       "ecgc_rate_percent": 0.3,
-      "id": 8
+      "sea_freight_usd": 0
     }
   ],
   "destPorts": [
