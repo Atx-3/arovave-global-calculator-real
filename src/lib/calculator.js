@@ -337,38 +337,22 @@ export function calculateExportPricing({
     const marineInsuranceCost = cfrBase * (parseFloat(marineInsuranceRate) / 100);
     const insuranceTotal = Math.max(marineInsuranceCost, parseFloat(minInsurance) || 0);
 
-    // ============================================
-    // STEP 12: BANK CHARGES
-    // ============================================
     // Base for bank charges depends on the selected tier
     const totalCifExtraCharges = parseFloat(cifExtraCharges) || 0;
-    let totalBillForBankCharges = 0;
-    if (selectedTier === 'exFactory') {
-        // EXW: bank charges only on ex-factory value
-        totalBillForBankCharges = exFactoryINR;
-    } else if (selectedTier === 'fob') {
-        // FOB: bank charges on FOB value (includes local freight, handling, port, etc.)
-        totalBillForBankCharges = fobINR + containerStuffingTotal + exportPackingTotal + ecgcAmount + totalFobExtraCharges;
-    } else {
-        // CIF: bank charges on everything
-        totalBillForBankCharges = exFactoryINR + localFreightTotal + handlingCosts.total + portCosts.total + totalFobExtraCharges + containerStuffingTotal + exportPackingTotal + ecgcAmount + freightWithGST + insuranceTotal + indianInsuranceCost + totalCifExtraCharges;
-    }
-    const bankCharges = totalBillForBankCharges * (bankChargeRate / 100);
 
     // ============================================
-    // STEP 13: PROFIT MARGIN (Applied at selected tier)
+    // STEP 12: PROFIT MARGIN (Calculated first, before bank charges)
     // ============================================
-    const costBaseCIF = totalBillForBankCharges + bankCharges;
-
-    // Calculate profit base based on selected tier
+    // Calculate profit base based on selected tier (without bank charges)
     let profitBase = 0;
     if (selectedTier === 'exFactory') {
         profitBase = exFactoryINR;
     } else if (selectedTier === 'fob') {
         profitBase = fobINR;
     } else {
-        // CIF - use full cost base
-        profitBase = costBaseCIF;
+        // CIF - use full cost base (without bank charges)
+        const cifCostBase = exFactoryINR + localFreightTotal + handlingCosts.total + portCosts.total + totalFobExtraCharges + containerStuffingTotal + exportPackingTotal + ecgcAmount + freightWithGST + insuranceTotal + indianInsuranceCost + totalCifExtraCharges;
+        profitBase = cifCostBase;
     }
 
     let profitAmount = 0;
@@ -383,29 +367,39 @@ export function calculateExportPricing({
     }
 
     // ============================================
-    // STEP 14: FINAL PRICES WITH PROFIT AT SELECTED TIER
+    // STEP 13: BANK CHARGES (Applied AFTER profit, on costs + profit)
     // ============================================
+    let totalBillForBankCharges = 0;
+    if (selectedTier === 'exFactory') {
+        totalBillForBankCharges = exFactoryINR + profitAmount;
+    } else if (selectedTier === 'fob') {
+        totalBillForBankCharges = fobINR + containerStuffingTotal + exportPackingTotal + ecgcAmount + totalFobExtraCharges + profitAmount;
+    } else {
+        totalBillForBankCharges = exFactoryINR + localFreightTotal + handlingCosts.total + portCosts.total + totalFobExtraCharges + containerStuffingTotal + exportPackingTotal + ecgcAmount + freightWithGST + insuranceTotal + indianInsuranceCost + totalCifExtraCharges + profitAmount;
+    }
+    const bankCharges = totalBillForBankCharges * (bankChargeRate / 100);
 
-    // Calculate final prices based on selected tier
+    // ============================================
+    // STEP 14: FINAL PRICES (Costs + Profit + Bank Charges)
+    // ============================================
+    const costBaseCIF = exFactoryINR + localFreightTotal + handlingCosts.total + portCosts.total + totalFobExtraCharges + containerStuffingTotal + exportPackingTotal + ecgcAmount + freightWithGST + insuranceTotal + indianInsuranceCost + totalCifExtraCharges;
+
     let exFactoryFinalINR = exFactoryINR;
     let fobFinalINR = fobINR;
     let cifFinalINR = costBaseCIF;
 
     if (selectedTier === 'exFactory') {
-        // Profit added to Ex Factory only, bank charges included
-        exFactoryFinalINR = exFactoryINR + bankCharges + profitAmount;
-        fobFinalINR = fobINR + bankCharges + profitAmount; // Profit flows through
-        cifFinalINR = costBaseCIF + profitAmount; // costBaseCIF already includes bankCharges
+        exFactoryFinalINR = exFactoryINR + profitAmount + bankCharges;
+        fobFinalINR = fobINR + profitAmount + bankCharges;
+        cifFinalINR = costBaseCIF + profitAmount + bankCharges;
     } else if (selectedTier === 'fob') {
-        // Profit added to FOB
         exFactoryFinalINR = exFactoryINR;
-        fobFinalINR = fobINR + bankCharges + profitAmount;
-        cifFinalINR = costBaseCIF + profitAmount; // Profit flows through
+        fobFinalINR = fobINR + containerStuffingTotal + exportPackingTotal + ecgcAmount + totalFobExtraCharges + profitAmount + bankCharges;
+        cifFinalINR = costBaseCIF + profitAmount + bankCharges;
     } else {
-        // CIF - profit added to full cost (current behavior)
         exFactoryFinalINR = exFactoryINR;
         fobFinalINR = fobINR;
-        cifFinalINR = costBaseCIF + profitAmount;
+        cifFinalINR = costBaseCIF + profitAmount + bankCharges;
     }
 
     const exFactoryFinalUSD = convertToUSD(exFactoryFinalINR, exchangeRate);
