@@ -691,25 +691,27 @@ export default function Home() {
                 : 10000; // Arbitrary high number if missing
 
             // 1. Calculate Total Units
-            // If Unit Weight is provided, Quantity is treated as Total Weight (kg)
-            // Total Units = Total Weight / Unit Weight
+            // For PCS products: quantity IS the unit count (pieces), no conversion needed
+            // For KG/GM products: if Unit Weight is provided, Quantity is Total Weight → derive units
+            const isPcsProduct = selectedProduct?.unit === 'PCS';
             let totalUnits = parseFloat(quantity);
-            if (unitWeight && parseFloat(unitWeight) > 0) {
+            if (!isPcsProduct && unitWeight && parseFloat(unitWeight) > 0) {
+                // Weight-based product: quantity = total weight, derive unit count
                 let weightInKg = parseFloat(unitWeight);
                 if (unitWeightUnit === 'g') {
                     weightInKg = weightInKg / 1000;
                 }
                 totalUnits = Math.ceil(parseFloat(quantity) / weightInKg);
             }
+            // For PCS: totalUnits = quantity (already pieces)
 
             // 2. Calculate Total Boxes
-            // Priority: Units per Box -> Box Weight -> Default
+            // Priority: Units per Box -> Box Weight (only for weight-based) -> Default
             let totalBoxesNeeded = 1;
             if (unitsPerBox && parseFloat(unitsPerBox) > 0) {
                 totalBoxesNeeded = Math.ceil(totalUnits / parseFloat(unitsPerBox));
-            } else if (boxWeightMain && parseFloat(boxWeightMain) > 0) {
-                // Fallback: If we only have box weight and total quantity is weight
-                // This path is less precise if unit details are missing
+            } else if (!isPcsProduct && boxWeightMain && parseFloat(boxWeightMain) > 0) {
+                // Fallback for weight-based: quantity is weight, divide by box weight
                 totalBoxesNeeded = Math.ceil(parseFloat(quantity) / parseFloat(boxWeightMain));
             } else {
                 // Fallback to safe defaults
@@ -892,9 +894,9 @@ export default function Home() {
         } catch (err) {
             console.error('Calculation error:', err);
             setError(`Error calculating prices: ${err.message}. Check console for details.`);
+        } finally {
+            setCalculating(false);
         }
-
-        setCalculating(false);
     };
 
     // Always keep ref pointing to latest handleCalculate
@@ -1989,7 +1991,7 @@ export default function Home() {
                         <button
                             className="btn btn-primary btn-lg"
                             onClick={handleCalculate}
-                            disabled={calculating || containerCount === 0}
+                            disabled={calculating || (!selectedProduct || !quantity) || (selectedTier !== 'exFactory' && containerCount === 0)}
                             style={{ width: '100%', marginTop: 'var(--space-4)' }}
                             data-calculate-btn="true"
                         >

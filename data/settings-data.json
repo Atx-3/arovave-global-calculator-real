@@ -100,6 +100,17 @@
       "active": true,
       "linked_manufacturers": [],
       "id": 10
+    },
+    {
+      "name": "Glass Bottel",
+      "hsn_code": "1234",
+      "unit": "PCS",
+      "base_price_usd": 1,
+      "qty_per_20ft": 0,
+      "qty_per_40ft": 0,
+      "active": true,
+      "linked_manufacturers": [],
+      "id": 11
     }
   ],
   "locations": [

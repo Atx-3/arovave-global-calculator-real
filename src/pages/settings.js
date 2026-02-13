@@ -274,8 +274,8 @@ export default function SettingsPage() {
                                     <tr>
                                         <th>Name</th>
                                         <th>HSN</th>
+                                        <th>Unit</th>
                                         <th>Price (USD)</th>
-
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -285,6 +285,7 @@ export default function SettingsPage() {
                                         <tr key={item.id}>
                                             <td>{item.name}</td>
                                             <td>{item.hsn_code}</td>
+                                            <td><span className="badge badge-info" style={{ fontSize: 'var(--text-xs)' }}>{item.unit || 'KG'}</span></td>
                                             <td>${item.base_price_usd}</td>
 
                                             <td><span className={`badge ${item.active ? 'badge-success' : 'badge-warning'}`}>{item.active ? 'Active' : 'Inactive'}</span></td>
@@ -498,7 +499,7 @@ export default function SettingsPage() {
                                 <div className="form-group"><label className="form-label">Product Name</label><input className="form-input" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} /></div>
                                 <div className="form-row">
                                     <div className="form-group"><label className="form-label">HSN Code</label><input className="form-input" value={formData.hsn_code || ''} onChange={e => setFormData({ ...formData, hsn_code: e.target.value })} /></div>
-                                    <div className="form-group"><label className="form-label">Unit</label><input className="form-input" value={formData.unit || ''} onChange={e => setFormData({ ...formData, unit: e.target.value })} /></div>
+                                    <div className="form-group"><label className="form-label">Unit</label><select className="form-select" value={formData.unit || 'KG'} onChange={e => setFormData({ ...formData, unit: e.target.value })}><option value="KG">KG (Kilogram)</option><option value="GM">GM (Gram)</option><option value="PCS">PCS (Per Piece)</option></select></div>
                                 </div>
                                 <div className="form-group"><label className="form-label">Base Price (USD)</label><input className="form-input" type="number" step="0.01" value={formData.base_price_usd || ''} onChange={e => setFormData({ ...formData, base_price_usd: parseFloat(e.target.value) || 0 })} /></div>
                                 <div className="form-row">
