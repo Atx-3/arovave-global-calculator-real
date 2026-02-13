@@ -543,6 +543,7 @@ export default function Home() {
         const productId = e.target.value;
         const product = products.find(p => p.id.toString() === productId);
         setSelectedProduct(product || null);
+        setSelectedLocation(''); // Clear location when product changes (locations are product-specific)
         setResult(null);
     };
 
@@ -1569,9 +1570,11 @@ export default function Home() {
                                             onChange={(e) => { setSelectedLocation(e.target.value); setResult(null); }}
                                         >
                                             <option value="">Select location</option>
-                                            {locations.map(loc => (
-                                                <option key={loc.id} value={loc.id}>{loc.name}</option>
-                                            ))}
+                                            {locations
+                                                .filter(loc => !loc.product_id || (selectedProduct && loc.product_id.toString() === selectedProduct.id.toString()))
+                                                .map(loc => (
+                                                    <option key={loc.id} value={loc.id}>{loc.name}{loc.state ? ` (${loc.state})` : ''}</option>
+                                                ))}
                                         </select>
                                     </div>
                                 </div>

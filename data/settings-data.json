@@ -387,6 +387,7 @@
     "indian_insurance_rate": "0.10",
     "marine_insurance_rate": "0.50",
     "sea_freight_20ft": "1000",
-    "sea_freight_40ft": "1800"
+    "sea_freight_40ft": "1800",
+    "transport_rate_per_km": "50"
   }
 }

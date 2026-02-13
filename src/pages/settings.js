@@ -229,7 +229,7 @@ export default function SettingsPage() {
     function getEmptyForm(type) {
         switch (type) {
             case 'products': return { name: '', hsn_code: '', unit: 'KG', base_price_usd: 0, qty_per_20ft: 0, qty_per_40ft: 0, active: true, linked_manufacturers: [] };
-            case 'locations': return { name: '', state: '', pincode: '' };
+            case 'locations': return { name: '', state: '', pincode: '', product_id: '' };
             case 'ports': return { name: '', code: '', city: '', pincode: '', handling_per_container: 0, cha_charges: 0, customs_per_shipment: 0 };
             case 'countries': return { name: '', code: '', ecgc_risk_category: 'A', ecgc_rate_percent: 0.3, sea_freight_usd: 0 };
             case 'destPorts': return { name: '', code: '', country_id: 1 };
@@ -336,19 +336,23 @@ export default function SettingsPage() {
                         {/* Locations Tab */}
                         {activeTab === 'locations' && (
                             <table className="breakup-table">
-                                <thead><tr><th>Name</th><th>State</th><th>Pincode</th><th>Actions</th></tr></thead>
+                                <thead><tr><th>Product</th><th>Name</th><th>State</th><th>Pincode</th><th>Actions</th></tr></thead>
                                 <tbody>
-                                    {locations.map(item => (
-                                        <tr key={item.id}>
-                                            <td>{item.name}</td>
-                                            <td>{item.state}</td>
-                                            <td>{item.pincode}</td>
-                                            <td>
-                                                <button className="btn btn-secondary btn-sm" onClick={() => handleEdit('locations', item)} style={{ marginRight: '4px' }}>Edit</button>
-                                                <button className="btn btn-secondary btn-sm" onClick={() => handleDelete('locations', item.id)}>Delete</button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {locations.map(item => {
+                                        const linkedProduct = products.find(p => p.id.toString() === (item.product_id || '').toString());
+                                        return (
+                                            <tr key={item.id}>
+                                                <td><span className="badge badge-info" style={{ fontSize: 'var(--text-xs)' }}>{linkedProduct ? linkedProduct.name : 'All'}</span></td>
+                                                <td>{item.name}</td>
+                                                <td>{item.state}</td>
+                                                <td>{item.pincode}</td>
+                                                <td>
+                                                    <button className="btn btn-secondary btn-sm" onClick={() => handleEdit('locations', item)} style={{ marginRight: '4px' }}>Edit</button>
+                                                    <button className="btn btn-secondary btn-sm" onClick={() => handleDelete('locations', item.id)}>Delete</button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         )}
@@ -544,6 +548,15 @@ export default function SettingsPage() {
 
                         {activeTab === 'locations' && (
                             <>
+                                <div className="form-group">
+                                    <label className="form-label">Product <span style={{ color: 'var(--error)' }}>*</span></label>
+                                    <select className="form-select" value={formData.product_id || ''} onChange={e => setFormData({ ...formData, product_id: e.target.value })}>
+                                        <option value="">All Products</option>
+                                        {products.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <div className="form-group"><label className="form-label">Location Name</label><input className="form-input" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} /></div>
                                 <div className="form-row">
                                     <div className="form-group"><label className="form-label">State</label><input className="form-input" value={formData.state || ''} onChange={e => setFormData({ ...formData, state: e.target.value })} /></div>
