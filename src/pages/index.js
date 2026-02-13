@@ -121,6 +121,26 @@ export default function Home() {
         bankCharges: ''
     });
 
+    // Share Modal State - breakdown selection for WhatsApp/PDF
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [shareMode, setShareMode] = useState(''); // 'whatsapp' or 'pdf'
+    const [shareBreakdownItems, setShareBreakdownItems] = useState({
+        productBase: true,
+        innerPacking: true,
+        outerPacking: true,
+        localFreight: true,
+        portHandling: true,
+        chaCustoms: true,
+        containerStuffing: true,
+        exportPacking: true,
+        ecgc: true,
+        seaFreight: true,
+        marineInsurance: true,
+        indianInsurance: true,
+        bankCharges: true
+    });
+    const [showOtherInShare, setShowOtherInShare] = useState(true); // show 'Other' for balance
+
     // Initialize editedBreakdown when entering edit mode
     const handleEditModeToggle = () => {
         if (!isEditingBreakdown && result) {
@@ -988,14 +1008,92 @@ export default function Home() {
         setCalculationHistory([]);
     };
 
-    // Open client details modal for PDF download
+    // Open share options modal for PDF or WhatsApp
     const handleDownloadPDF = () => {
         if (result) {
+            setShareMode('pdf');
+            setShowShareModal(true);
+        }
+    };
+
+    const handleWhatsAppShare = () => {
+        if (result) {
+            setShareMode('whatsapp');
+            setShowShareModal(true);
+        }
+    };
+
+    // Get selected breakdown items with amounts
+    const getSelectedBreakdownForShare = () => {
+        if (!result) return { items: [], otherAmount: 0, finalTotal: 0 };
+        const b = result.pricing.breakdown;
+        const tier = result.pricing.selectedTier || selectedTier;
+
+        // Final total based on tier (profit + bank charges already included)
+        let finalTotal = 0;
+        if (tier === 'exFactory') finalTotal = result.pricing.exFactory.inr;
+        else if (tier === 'fob') finalTotal = result.pricing.fob.inr;
+        else finalTotal = result.pricing.cif.inr;
+
+        const allItems = [
+            { key: 'productBase', label: 'Product Cost', amount: b.productBase?.total || 0 },
+            { key: 'innerPacking', label: 'Inner Packing', amount: b.innerPacking?.total || 0 },
+            { key: 'outerPacking', label: 'Outer Box Packing', amount: b.outerPacking?.total || 0 },
+            { key: 'localFreight', label: 'Inland Transport', amount: b.localFreight?.total || 0 },
+            { key: 'portHandling', label: 'Port Handling', amount: b.port?.handling || 0 },
+            { key: 'chaCustoms', label: 'CHA & Customs', amount: (b.port?.cha || 0) + (b.port?.customs || 0) },
+            { key: 'containerStuffing', label: 'Container Stuffing', amount: b.containerStuffing?.total || 0 },
+            { key: 'exportPacking', label: 'Export Packing', amount: b.exportPacking?.total || 0 },
+            { key: 'ecgc', label: 'ECGC Premium', amount: b.ecgc?.total || 0 },
+            { key: 'seaFreight', label: 'Sea Freight', amount: b.freight?.totalWithGST || 0 },
+            { key: 'marineInsurance', label: 'Marine Insurance', amount: b.insurance?.total || 0 },
+            { key: 'indianInsurance', label: 'Indian Insurance', amount: b.indianInsurance?.total || 0 },
+            { key: 'bankCharges', label: 'Bank Charges', amount: b.bankCharges?.total || 0 }
+        ].filter(item => item.amount > 0);
+
+        const selectedItems = allItems.filter(item => shareBreakdownItems[item.key]);
+        const selectedTotal = selectedItems.reduce((sum, item) => sum + item.amount, 0);
+        const otherAmount = finalTotal - selectedTotal;
+
+        return { items: selectedItems, otherAmount, finalTotal };
+    };
+
+    // Proceed with WhatsApp share after breakdown selection
+    const handleShareProceed = () => {
+        if (shareMode === 'whatsapp') {
+            const { items, otherAmount, finalTotal } = getSelectedBreakdownForShare();
+            const tierLabel = selectedTier === 'exFactory' ? 'Ex-Factory' : selectedTier === 'fob' ? 'FOB' : 'CIF';
+
+            let text = `*AROVAVE GLOBAL - Export Quotation*%0A`;
+            text += `━━━━━━━━━━━━━━━━━━%0A%0A`;
+            text += `*Product:* ${result.productName}%0A`;
+            text += `*HSN:* ${result.hsnCode || 'N/A'}%0A`;
+            text += `*Quantity:* ${formatNumber(result.quantity)} ${result.unit}%0A%0A`;
+
+            if (items.length > 0) {
+                text += `*Cost Breakdown:*%0A`;
+                items.forEach(item => {
+                    text += `  • ${item.label}: ${formatINR(item.amount)}%0A`;
+                });
+                if (showOtherInShare && otherAmount > 0) {
+                    text += `  • Other Charges: ${formatINR(otherAmount)}%0A`;
+                }
+                text += `%0A`;
+            }
+
+            text += `*Total (${tierLabel}):* ${formatINR(finalTotal)}%0A%0A`;
+            text += `_Contact us for more details!_`;
+
+            window.open(`https://wa.me/?text=${text}`, '_blank');
+            setShowShareModal(false);
+        } else if (shareMode === 'pdf') {
+            // Close share modal and open client modal for PDF
+            setShowShareModal(false);
             setShowClientModal(true);
         }
     };
 
-    // Actually generate and download PDF with client info
+    // Actually generate and download PDF with client info + selected breakdown
     const handleGeneratePDF = async () => {
         if (result) {
             const clientInfo = {
@@ -1003,31 +1101,12 @@ export default function Home() {
                 phone: clientPhone.trim(),
                 company: clientCompany.trim()
             };
-            await downloadQuotationPDF(result, clientInfo, pdfCurrency);
+            const { items, otherAmount } = getSelectedBreakdownForShare();
+            await downloadQuotationPDF(result, clientInfo, pdfCurrency, { items, otherAmount, showOther: showOtherInShare });
             setShowClientModal(false);
-            // Reset form
             setClientName('');
             setClientPhone('');
             setClientCompany('');
-        }
-    };
-
-    // Share via WhatsApp - EX-FACTORY rate with margin in USD only
-    const handleWhatsAppShare = () => {
-        if (result) {
-            const perUnitUSD = result.pricing?.perUnit?.exFactory || 0;
-            const totalUSD = result.pricing?.exFactory?.usd || 0;
-
-            const text = `*AROVAVE GLOBAL - Export Quotation*%0A` +
-                `━━━━━━━━━━━━━━━━━━%0A%0A` +
-                `*Product:* ${result.productName}%0A` +
-                `*HSN:* ${result.hsnCode || 'N/A'}%0A` +
-                `*Quantity:* ${formatNumber(result.quantity)} ${result.unit}%0A%0A` +
-                `*Rate:* ${formatUSD(perUnitUSD)} per ${result.unit}%0A` +
-                `*Total (Ex-Factory):* ${formatUSD(totalUSD)}%0A%0A` +
-                `_Contact us for more details!_`;
-
-            window.open(`https://wa.me/?text=${text}`, '_blank');
         }
     };
 
@@ -2666,6 +2745,163 @@ export default function Home() {
                     <p>© {new Date().getFullYear()} Arovave Global. All rights reserved.</p>
                 </footer >
             </div >
+
+            {/* Share Options Modal - Breakdown Selection */}
+            {showShareModal && result && (() => {
+                const b = result.pricing.breakdown;
+                const tier = result.pricing.selectedTier || selectedTier;
+                let finalTotal = 0;
+                if (tier === 'exFactory') finalTotal = result.pricing.exFactory.inr;
+                else if (tier === 'fob') finalTotal = result.pricing.fob.inr;
+                else finalTotal = result.pricing.cif.inr;
+
+                const allItems = [
+                    { key: 'productBase', label: 'Product Cost', amount: b.productBase?.total || 0 },
+                    { key: 'innerPacking', label: 'Inner Packing', amount: b.innerPacking?.total || 0 },
+                    { key: 'outerPacking', label: 'Outer Box Packing', amount: b.outerPacking?.total || 0 },
+                    { key: 'localFreight', label: 'Inland Transport', amount: b.localFreight?.total || 0 },
+                    { key: 'portHandling', label: 'Port Handling', amount: b.port?.handling || 0 },
+                    { key: 'chaCustoms', label: 'CHA & Customs', amount: (b.port?.cha || 0) + (b.port?.customs || 0) },
+                    { key: 'containerStuffing', label: 'Container Stuffing', amount: b.containerStuffing?.total || 0 },
+                    { key: 'exportPacking', label: 'Export Packing', amount: b.exportPacking?.total || 0 },
+                    { key: 'ecgc', label: 'ECGC Premium', amount: b.ecgc?.total || 0 },
+                    { key: 'seaFreight', label: 'Sea Freight', amount: b.freight?.totalWithGST || 0 },
+                    { key: 'marineInsurance', label: 'Marine Insurance', amount: b.insurance?.total || 0 },
+                    { key: 'indianInsurance', label: 'Indian Insurance', amount: b.indianInsurance?.total || 0 },
+                    { key: 'bankCharges', label: 'Bank Charges', amount: b.bankCharges?.total || 0 }
+                ].filter(item => item.amount > 0);
+
+                const selectedTotal = allItems.filter(i => shareBreakdownItems[i.key]).reduce((s, i) => s + i.amount, 0);
+                const otherAmount = finalTotal - selectedTotal;
+                const anySelected = allItems.some(i => shareBreakdownItems[i.key]);
+
+                return (
+                    <div style={{
+                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(0,0,0,0.8)', zIndex: 1000,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: 'var(--space-4)'
+                    }} onClick={() => setShowShareModal(false)}>
+                        <div style={{
+                            background: 'var(--bg-secondary)', borderRadius: 'var(--radius-xl)',
+                            padding: 'var(--space-6)', maxWidth: '480px', width: '100%',
+                            maxHeight: '85vh', overflowY: 'auto'
+                        }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+                                <h3 style={{ margin: 0 }}>
+                                    {shareMode === 'whatsapp' ? '📱 WhatsApp Share' : '📄 PDF Download'} — Select Breakdown
+                                </h3>
+                                <button onClick={() => setShowShareModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>×</button>
+                            </div>
+
+                            <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-3)', lineHeight: 1.4 }}>
+                                Select which cost items to show in the bill. Unselected items will be grouped as "Other Charges". If nothing is selected, only the final total will be shown.
+                            </p>
+
+                            {/* Select All / Deselect All */}
+                            <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => {
+                                        const all = {};
+                                        allItems.forEach(i => all[i.key] = true);
+                                        setShareBreakdownItems(prev => ({ ...prev, ...all }));
+                                    }}
+                                    style={{ fontSize: '11px' }}
+                                >Select All</button>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => {
+                                        const none = {};
+                                        allItems.forEach(i => none[i.key] = false);
+                                        setShareBreakdownItems(prev => ({ ...prev, ...none }));
+                                    }}
+                                    style={{ fontSize: '11px' }}
+                                >Deselect All</button>
+                            </div>
+
+                            {/* Checkbox list */}
+                            <div style={{
+                                border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)',
+                                overflow: 'hidden', marginBottom: 'var(--space-3)'
+                            }}>
+                                {allItems.map((item, idx) => (
+                                    <label key={item.key} style={{
+                                        display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                                        padding: '10px 14px', cursor: 'pointer',
+                                        background: shareBreakdownItems[item.key] ? 'var(--primary-50)' : 'transparent',
+                                        borderBottom: idx < allItems.length - 1 ? '1px solid var(--gray-100)' : 'none',
+                                        transition: 'background 0.15s'
+                                    }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={!!shareBreakdownItems[item.key]}
+                                            onChange={() => setShareBreakdownItems(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
+                                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                        />
+                                        <span style={{ flex: 1, fontSize: 'var(--text-sm)' }}>{item.label}</span>
+                                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                                            {formatINR(item.amount)}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+
+                            {/* Other Charges toggle */}
+                            {anySelected && otherAmount > 0 && (
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: '10px 14px', background: 'var(--bg-glass)',
+                                    borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)',
+                                    border: '1px solid var(--gray-200)'
+                                }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={showOtherInShare}
+                                            onChange={() => setShowOtherInShare(!showOtherInShare)}
+                                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                        />
+                                        <span style={{ fontSize: 'var(--text-sm)' }}>Show "Other Charges"</span>
+                                    </label>
+                                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: '600', color: 'var(--warning-700)' }}>
+                                        {formatINR(otherAmount)}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Total preview */}
+                            <div style={{
+                                padding: '12px 14px', background: 'var(--black)', color: 'white',
+                                borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-4)',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                            }}>
+                                <span style={{ fontSize: 'var(--text-sm)', fontWeight: '600' }}>
+                                    {selectedTier === 'exFactory' ? 'Ex-Factory' : selectedTier === 'fob' ? 'FOB' : 'CIF'} Total
+                                </span>
+                                <span style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-bold)' }}>
+                                    {formatINR(finalTotal)}
+                                </span>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowShareModal(false)}
+                                    style={{ flex: 1 }}
+                                >Cancel</button>
+                                <button
+                                    className="btn btn-accent"
+                                    onClick={handleShareProceed}
+                                    style={{ flex: 1 }}
+                                >
+                                    {shareMode === 'whatsapp' ? '📱 Send WhatsApp' : '➡️ Next'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Client Details Modal for PDF */}
             {showClientModal && (

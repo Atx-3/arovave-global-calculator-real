@@ -49,7 +49,7 @@ function drawPageBackground(doc) {
  * @param {string} logoDataUrl - Base64 data URL of the logo (optional)
  * @returns {Promise<jsPDF>} PDF document
  */
-export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = null, currency = 'USD') {
+export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = null, currency = 'USD', shareOptions = null) {
     // Currency formatter based on selection
     const fmt = (value) => currency === 'INR' ? formatINR(value) : formatCurrency(value);
     // Dynamically import jspdf-autotable to avoid SSR issues
@@ -225,54 +225,45 @@ export async function generateQuotationPDF(data, clientInfo = {}, logoDataUrl = 
     const selectedTier = data.pricing?.selectedTier || 'cif';
     const tableBody = [];
 
-    // Product Base - EXW items only
-    if (breakdown.productBase) {
-        tableBody.push([
-            'Product Cost',
-            `${formatCurrency(breakdown.productBase.perUnit || 0)}/${data.unit || 'KG'}`,
-            `${breakdown.productBase.quantity || 0} ${data.unit || 'KG'}`,
-            fmt(breakdown.productBase.total || 0)
-        ]);
-    }
-
-    // Inner Packing
-    if (breakdown.innerPacking?.total > 0) {
-        tableBody.push([
-            'Inner Packing',
-            '-',
-            `${breakdown.innerPacking.quantity || 0} units`,
-            fmt(breakdown.innerPacking.total)
-        ]);
-    }
-
-    // Outer Packing
-    if (breakdown.outerPacking?.total > 0) {
-        tableBody.push([
-            'Outer Box Packing',
-            '-',
-            `${breakdown.totalBoxes || 0} boxes`,
-            fmt(breakdown.outerPacking.total)
-        ]);
-    }
-
-    // Bank Charges
-    if (breakdown.bankCharges?.total > 0) {
-        tableBody.push([
-            `Bank Charges (${breakdown.bankCharges.rate || 0}%)`,
-            'On Total',
-            '-',
-            fmt(breakdown.bankCharges.total)
-        ]);
-    }
-
-    // Profit
-    if (breakdown.profitIncluded?.amount > 0) {
-        tableBody.push([
-            `Profit Margin (${breakdown.profitIncluded.rate || 0}%)`,
-            'On Total',
-            '-',
-            fmt(breakdown.profitIncluded.amount)
-        ]);
+    // If shareOptions provided, use selected items; otherwise build from breakdown
+    if (shareOptions && shareOptions.items && shareOptions.items.length > 0) {
+        shareOptions.items.forEach(item => {
+            tableBody.push([
+                item.label,
+                '-',
+                '-',
+                fmt(item.amount || 0)
+            ]);
+        });
+        // Add "Other Charges" if enabled and there's a balance
+        if (shareOptions.showOther && shareOptions.otherAmount > 0) {
+            tableBody.push([
+                'Other Charges',
+                '-',
+                '-',
+                fmt(shareOptions.otherAmount)
+            ]);
+        }
+    } else {
+        // Default: show all items (no profit separately)
+        if (breakdown.productBase) {
+            tableBody.push([
+                'Product Cost',
+                `${formatCurrency(breakdown.productBase.perUnit || 0)}/${data.unit || 'KG'}`,
+                `${breakdown.productBase.quantity || 0} ${data.unit || 'KG'}`,
+                fmt(breakdown.productBase.total || 0)
+            ]);
+        }
+        if (breakdown.innerPacking?.total > 0) {
+            tableBody.push(['Inner Packing', '-', `${breakdown.innerPacking.quantity || 0} units`, fmt(breakdown.innerPacking.total)]);
+        }
+        if (breakdown.outerPacking?.total > 0) {
+            tableBody.push(['Outer Box Packing', '-', `${breakdown.totalBoxes || 0} boxes`, fmt(breakdown.outerPacking.total)]);
+        }
+        if (breakdown.bankCharges?.total > 0) {
+            tableBody.push([`Bank Charges (${breakdown.bankCharges.rate || 0}%)`, 'On Total', '-', fmt(breakdown.bankCharges.total)]);
+        }
+        // NOTE: Profit is intentionally NOT shown as a separate line - it's included in the total
     }
 
     doc.autoTable({
@@ -420,9 +411,9 @@ async function loadLogoAsBase64() {
  * @param {Object} data - Quotation data
  * @param {Object} clientInfo - Client details
  */
-export async function downloadQuotationPDF(data, clientInfo = {}, currency = 'USD') {
+export async function downloadQuotationPDF(data, clientInfo = {}, currency = 'USD', shareOptions = null) {
     const logoDataUrl = await loadLogoAsBase64();
-    const doc = await generateQuotationPDF(data, clientInfo, logoDataUrl, currency);
+    const doc = await generateQuotationPDF(data, clientInfo, logoDataUrl, currency, shareOptions);
     const filename = `Arovave_Quotation_${data.productName?.replace(/\s+/g, '_') || 'Export'}_${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(filename);
 }
@@ -433,8 +424,8 @@ export async function downloadQuotationPDF(data, clientInfo = {}, currency = 'US
  * @param {Object} clientInfo - Client details
  * @returns {Promise<Blob>} PDF blob
  */
-export async function getQuotationPDFBlob(data, clientInfo = {}, currency = 'USD') {
+export async function getQuotationPDFBlob(data, clientInfo = {}, currency = 'USD', shareOptions = null) {
     const logoDataUrl = await loadLogoAsBase64();
-    const doc = await generateQuotationPDF(data, clientInfo, logoDataUrl, currency);
+    const doc = await generateQuotationPDF(data, clientInfo, logoDataUrl, currency, shareOptions);
     return doc.output('blob');
 }
