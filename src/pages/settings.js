@@ -501,6 +501,10 @@ export default function SettingsPage() {
                                         <label className="form-label">Container Stuffing Rate (₹/container)</label>
                                         <input className="form-input" type="number" value={generalSettings.container_stuffing_rate || ''} onChange={(e) => handleSettingChange('container_stuffing_rate', e.target.value)} />
                                     </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Inland Transport Rate (₹/KM)</label>
+                                        <input className="form-input" type="number" step="0.5" value={generalSettings.transport_rate_per_km || ''} onChange={(e) => handleSettingChange('transport_rate_per_km', e.target.value)} />
+                                    </div>
                                 </div>
 
                             </div>
