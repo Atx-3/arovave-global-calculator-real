@@ -1036,20 +1036,20 @@ export default function Home() {
         else finalTotal = result.pricing.cif.inr;
 
         const allItems = [
-            { key: 'productBase', label: 'Product Cost', amount: b.productBase?.total || 0 },
-            { key: 'innerPacking', label: 'Inner Packing', amount: b.innerPacking?.total || 0 },
-            { key: 'outerPacking', label: 'Outer Box Packing', amount: b.outerPacking?.total || 0 },
-            { key: 'localFreight', label: 'Inland Transport', amount: b.localFreight?.total || 0 },
-            { key: 'portHandling', label: 'Port Handling', amount: b.port?.handling || 0 },
-            { key: 'chaCustoms', label: 'CHA & Customs', amount: (b.port?.cha || 0) + (b.port?.customs || 0) },
-            { key: 'containerStuffing', label: 'Container Stuffing', amount: b.containerStuffing?.total || 0 },
-            { key: 'exportPacking', label: 'Export Packing', amount: b.exportPacking?.total || 0 },
-            { key: 'ecgc', label: 'ECGC Premium', amount: b.ecgc?.total || 0 },
-            { key: 'seaFreight', label: 'Sea Freight', amount: b.freight?.totalWithGST || 0 },
-            { key: 'marineInsurance', label: 'Marine Insurance', amount: b.insurance?.total || 0 },
-            { key: 'indianInsurance', label: 'Indian Insurance', amount: b.indianInsurance?.total || 0 },
-            { key: 'bankCharges', label: 'Bank Charges', amount: b.bankCharges?.total || 0 }
-        ].filter(item => item.amount > 0);
+            { key: 'productBase', label: 'Product Cost', amount: b.productBase?.total || 0, tiers: ['exFactory', 'fob', 'cif'] },
+            { key: 'innerPacking', label: 'Inner Packing', amount: b.innerPacking?.total || 0, tiers: ['exFactory', 'fob', 'cif'] },
+            { key: 'outerPacking', label: 'Outer Box Packing', amount: b.outerPacking?.total || 0, tiers: ['exFactory', 'fob', 'cif'] },
+            { key: 'bankCharges', label: 'Bank Charges', amount: b.bankCharges?.total || 0, tiers: ['exFactory', 'fob', 'cif'] },
+            { key: 'localFreight', label: 'Inland Transport', amount: b.localFreight?.total || 0, tiers: ['fob', 'cif'] },
+            { key: 'portHandling', label: 'Port Handling', amount: b.port?.handling || 0, tiers: ['fob', 'cif'] },
+            { key: 'chaCustoms', label: 'CHA & Customs', amount: (b.port?.cha || 0) + (b.port?.customs || 0), tiers: ['fob', 'cif'] },
+            { key: 'containerStuffing', label: 'Container Stuffing', amount: b.containerStuffing?.total || 0, tiers: ['fob', 'cif'] },
+            { key: 'exportPacking', label: 'Export Packing', amount: b.exportPacking?.total || 0, tiers: ['fob', 'cif'] },
+            { key: 'ecgc', label: 'ECGC Premium', amount: b.ecgc?.total || 0, tiers: ['cif'] },
+            { key: 'seaFreight', label: 'Sea Freight', amount: b.freight?.totalWithGST || 0, tiers: ['cif'] },
+            { key: 'marineInsurance', label: 'Marine Insurance', amount: b.insurance?.total || 0, tiers: ['cif'] },
+            { key: 'indianInsurance', label: 'Indian Insurance', amount: b.indianInsurance?.total || 0, tiers: ['cif'] },
+        ].filter(item => item.amount > 0 && item.tiers.includes(tier));
 
         const selectedItems = allItems.filter(item => shareBreakdownItems[item.key]);
         const selectedTotal = selectedItems.reduce((sum, item) => sum + item.amount, 0);
@@ -2756,20 +2756,20 @@ export default function Home() {
                 else finalTotal = result.pricing.cif.inr;
 
                 const allItems = [
-                    { key: 'productBase', label: 'Product Cost', amount: b.productBase?.total || 0 },
-                    { key: 'innerPacking', label: 'Inner Packing', amount: b.innerPacking?.total || 0 },
-                    { key: 'outerPacking', label: 'Outer Box Packing', amount: b.outerPacking?.total || 0 },
-                    { key: 'localFreight', label: 'Inland Transport', amount: b.localFreight?.total || 0 },
-                    { key: 'portHandling', label: 'Port Handling', amount: b.port?.handling || 0 },
-                    { key: 'chaCustoms', label: 'CHA & Customs', amount: (b.port?.cha || 0) + (b.port?.customs || 0) },
-                    { key: 'containerStuffing', label: 'Container Stuffing', amount: b.containerStuffing?.total || 0 },
-                    { key: 'exportPacking', label: 'Export Packing', amount: b.exportPacking?.total || 0 },
-                    { key: 'ecgc', label: 'ECGC Premium', amount: b.ecgc?.total || 0 },
-                    { key: 'seaFreight', label: 'Sea Freight', amount: b.freight?.totalWithGST || 0 },
-                    { key: 'marineInsurance', label: 'Marine Insurance', amount: b.insurance?.total || 0 },
-                    { key: 'indianInsurance', label: 'Indian Insurance', amount: b.indianInsurance?.total || 0 },
-                    { key: 'bankCharges', label: 'Bank Charges', amount: b.bankCharges?.total || 0 }
-                ].filter(item => item.amount > 0);
+                    { key: 'productBase', label: 'Product Cost', amount: b.productBase?.total || 0, tiers: ['exFactory', 'fob', 'cif'] },
+                    { key: 'innerPacking', label: 'Inner Packing', amount: b.innerPacking?.total || 0, tiers: ['exFactory', 'fob', 'cif'] },
+                    { key: 'outerPacking', label: 'Outer Box Packing', amount: b.outerPacking?.total || 0, tiers: ['exFactory', 'fob', 'cif'] },
+                    { key: 'bankCharges', label: 'Bank Charges', amount: b.bankCharges?.total || 0, tiers: ['exFactory', 'fob', 'cif'] },
+                    { key: 'localFreight', label: 'Inland Transport', amount: b.localFreight?.total || 0, tiers: ['fob', 'cif'] },
+                    { key: 'portHandling', label: 'Port Handling', amount: b.port?.handling || 0, tiers: ['fob', 'cif'] },
+                    { key: 'chaCustoms', label: 'CHA & Customs', amount: (b.port?.cha || 0) + (b.port?.customs || 0), tiers: ['fob', 'cif'] },
+                    { key: 'containerStuffing', label: 'Container Stuffing', amount: b.containerStuffing?.total || 0, tiers: ['fob', 'cif'] },
+                    { key: 'exportPacking', label: 'Export Packing', amount: b.exportPacking?.total || 0, tiers: ['fob', 'cif'] },
+                    { key: 'ecgc', label: 'ECGC Premium', amount: b.ecgc?.total || 0, tiers: ['cif'] },
+                    { key: 'seaFreight', label: 'Sea Freight', amount: b.freight?.totalWithGST || 0, tiers: ['cif'] },
+                    { key: 'marineInsurance', label: 'Marine Insurance', amount: b.insurance?.total || 0, tiers: ['cif'] },
+                    { key: 'indianInsurance', label: 'Indian Insurance', amount: b.indianInsurance?.total || 0, tiers: ['cif'] },
+                ].filter(item => item.amount > 0 && item.tiers.includes(tier));
 
                 const selectedTotal = allItems.filter(i => shareBreakdownItems[i.key]).reduce((s, i) => s + i.amount, 0);
                 const otherAmount = finalTotal - selectedTotal;
